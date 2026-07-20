@@ -30,11 +30,20 @@ header.topbar {
 }
 
 header.topbar h1 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   font-size: 20px;
   margin: 0;
   letter-spacing: 0.5px;
 }
 header.topbar h1 span { color: var(--accent); }
+
+.brand-icon {
+  height: 32px;
+  width: auto;
+  display: block;
+}
 
 nav.topnav a {
   color: var(--muted);
