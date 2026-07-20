@@ -1,0 +1,92 @@
+import datetime as dt
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.orm import Session
+
+from backend import models, schemas
+from backend.database import get_db
+from backend.ethics.privacy import require_consent
+from backend.gamification.engine import score_attempt, evaluate_badges
+from backend.ai_engine.personalization import update_mastery, build_feedback_prompt, fallback_feedback
+from backend.ai_engine.llm_client import chat_complete
+from backend.analytics.engagement import log_event
+from backend.routers.quests import _get_or_create_mastery
+
+router = APIRouter(prefix="/api", tags=["gameplay"])
+
+
+@router.post("/attempts", response_model=schemas.AttemptResultOut)
+def submit_attempt(payload: schemas.AttemptIn, db: Session = Depends(get_db)):
+    learner = require_consent(db, payload.learner_id)
+
+    quest = db.query(models.Quest).filter(models.Quest.id == payload.quest_id).first()
+    if not quest:
+        raise HTTPException(status_code=404, detail="Quest not found")
+
+    correct = payload.selected_index == quest.correct_index
+    mastery = _get_or_create_mastery(db, learner.id, quest.skill)
+
+    # --- AI Engine: adaptivity (R1) ---
+    update = update_mastery(current_mastery=mastery.mastery_score,
+                             current_streak=mastery.correct_streak, correct=correct)
+    mastery.mastery_score = update.new_mastery
+    mastery.correct_streak = update.new_streak
+    mastery.attempts_count += 1
+
+    # --- Gamification Engine: scoring & progression ---
+    scoring = score_attempt(
+        total_points_before=learner.total_points,
+        difficulty=quest.difficulty,
+        correct=correct,
+        response_time_ms=payload.response_time_ms,
+        correct_streak_after=update.new_streak,
+    )
+    learner.total_points = scoring.new_total_points
+    learner.level = scoring.new_level
+
+    existing_badge_codes = {b.code for b in db.query(models.Badge).filter(models.Badge.learner_id == learner.id).all()}
+    distinct_days = {
+        e.timestamp.date() for e in db.query(models.EngagementEvent)
+        .filter(models.EngagementEvent.learner_id == learner.id).all()
+    }
+    newly_earned = evaluate_badges(
+        existing_badge_codes,
+        is_first_attempt=mastery.attempts_count == 1,
+        correct_streak=update.new_streak,
+        mastery_score=update.new_mastery,
+        distinct_days_active=len(distinct_days) + 1,
+    )
+    for code, name in newly_earned:
+        db.add(models.Badge(learner_id=learner.id, code=code, name=name))
+
+    # --- AI Engine: adaptive feedback generation (R1) ---
+    system_prompt, user_prompt = build_feedback_prompt(
+        learner_display_name=learner.display_name, skill=quest.skill, correct=correct,
+        mastery_score=update.new_mastery, difficulty=quest.difficulty, prompt_text=quest.prompt,
+    )
+    fallback_text = fallback_feedback(correct=correct, skill=quest.skill,
+                                       mastery_score=update.new_mastery, difficulty=quest.difficulty)
+    feedback_result = chat_complete(system_prompt, user_prompt, fallback_text=fallback_text)
+
+    attempt = models.Attempt(
+        learner_id=learner.id, quest_id=quest.id, correct=correct,
+        difficulty_at_attempt=quest.difficulty, response_time_ms=payload.response_time_ms,
+        points_awarded=scoring.points_awarded, ai_feedback=feedback_result.text,
+        timestamp=dt.datetime.utcnow(),
+    )
+    db.add(attempt)
+    db.commit()
+
+    log_event(db, learner.id, "quest_complete", {"quest_id": quest.id, "correct": correct})
+
+    return schemas.AttemptResultOut(
+        correct=correct,
+        points_awarded=scoring.points_awarded,
+        total_points=scoring.new_total_points,
+        level=scoring.new_level,
+        level_up=scoring.level_up,
+        new_badges=[name for _, name in newly_earned],
+        mastery_score=update.new_mastery,
+        next_recommended_difficulty=update.recommended_difficulty,
+        ai_feedback=feedback_result.text,
+    )

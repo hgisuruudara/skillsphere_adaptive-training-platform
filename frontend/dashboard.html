@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>SkillSphere - Instructor Dashboard</title>
+  <link rel="stylesheet" href="/static/css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <h1>Skill<span>Sphere</span> - Instructor / Admin Dashboard</h1>
+    <nav class="topnav">
+      <a href="/">Learner</a>
+      <a href="/dashboard">Instructor Dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Engagement &amp; Performance Overview</h2>
+      <div class="stat-row" id="statRow"></div>
+    </section>
+
+    <div class="grid grid-2">
+      <section class="card">
+        <h2>Engagement, Last 14 Days</h2>
+        <div class="bar-chart" id="engagementChart"></div>
+        <p class="muted" id="engagementLegend"></p>
+      </section>
+
+      <section class="card">
+        <h2>Fairness Monitor <span class="muted">(cohort mastery comparison)</span></h2>
+        <table>
+          <thead><tr><th>Cohort</th><th>Learners</th><th>Avg Mastery</th><th>Deviation</th><th></th></tr></thead>
+          <tbody id="fairnessTable"></tbody>
+        </table>
+        <p class="muted">
+          The AI Engine never conditions difficulty or feedback on cohort membership;
+          this panel exists purely to help instructors detect and investigate outcome
+          disparities after the fact (see Ethics &amp; Privacy Layer).
+        </p>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Leaderboard</h2>
+      <table>
+        <thead><tr><th>#</th><th>Learner</th><th>Level</th><th>Points</th></tr></thead>
+        <tbody id="leaderboardTable"></tbody>
+      </table>
+    </section>
+  </main>
+
+  <script src="/static/js/dashboard.js"></script>
+</body>
+</html>
