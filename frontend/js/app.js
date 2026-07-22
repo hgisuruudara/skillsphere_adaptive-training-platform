@@ -37,6 +37,9 @@ function showRegistration() {
   $("displayName").value = "";
   $("cohort").value = "";
   $("consentCheck").checked = false;
+  $("resumeBox").classList.add("hidden");
+  $("resumeId").value = "";
+  $("resumeMsg").textContent = "";
   $("consentCard").classList.remove("hidden");
 }
 
@@ -44,6 +47,45 @@ $("newUserLink").addEventListener("click", (event) => {
   event.preventDefault();
   showRegistration();
 });
+
+// ---------- Resume on a new browser/device with an existing learner ID ----------
+$("showResumeLink").addEventListener("click", (event) => {
+  event.preventDefault();
+  $("resumeBox").classList.toggle("hidden");
+});
+
+$("resumeBtn").addEventListener("click", () => {
+  const id = $("resumeId").value.trim();
+  if (!id) { $("resumeMsg").textContent = "Enter a learner ID first."; return; }
+  attemptResume(id);
+});
+
+async function attemptResume(id) {
+  $("resumeMsg").textContent = "";
+  $("resumeBtn").disabled = true;
+  try {
+    const profile = await api(`/api/learners/${encodeURIComponent(id)}/profile`);
+    state = { learnerId: id, displayName: profile.learner.display_name, currentQuest: null, questStartedAt: null };
+    try {
+      await refreshAll();
+      localStorage.setItem("skillsphere_learner", JSON.stringify(state));
+      $("consentCard").classList.add("hidden");
+      $("resumeBox").classList.add("hidden");
+    } catch {
+      // Profile exists, but a data-writing call (e.g. quests) came back 403 -
+      // consent isn't currently active for this ID (never granted, withdrawn,
+      // or erased). Let the learner re-consent under the same ID rather than
+      // silently starting a brand new one.
+      $("learnerId").value = id;
+      $("displayName").value = profile.learner.display_name || "";
+      $("resumeMsg").textContent = "This ID exists, but consent isn't currently active - re-consent below with the same ID to continue.";
+    }
+  } catch {
+    $("resumeMsg").textContent = "No learner found with that ID. Check it and try again.";
+  } finally {
+    $("resumeBtn").disabled = false;
+  }
+}
 
 async function api(path, options = {}) {
   const res = await fetch(API + path, {

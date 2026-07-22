@@ -36,6 +36,16 @@
         data to personalize my training and to anonymized reporting for my organization.
       </label>
       <button id="startBtn">Start Training</button>
+
+      <p class="muted" style="margin-top:14px; margin-bottom:0;">
+        Already have a learner ID? <a href="#" id="showResumeLink">Resume your session</a>
+      </p>
+      <div id="resumeBox" class="hidden" style="margin-top:10px;">
+        <label class="field-label" for="resumeId">Your existing learner ID</label>
+        <input type="text" id="resumeId" placeholder="e.g. L-3F9A2B1" />
+        <button class="secondary" id="resumeBtn" type="button">Resume Session</button>
+        <p class="muted" id="resumeMsg"></p>
+      </div>
     </section>
 
     <!-- STEP 2: Gamified dashboard -->
