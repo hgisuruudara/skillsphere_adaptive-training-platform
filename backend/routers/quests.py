@@ -6,7 +6,9 @@ from sqlalchemy.orm import Session
 from backend import models, schemas
 from backend.database import get_db
 from backend.ethics.privacy import require_consent
-from backend.ai_engine.personalization import difficulty_for_mastery, DEFAULT_INITIAL_MASTERY
+from backend.ai_engine.personalization import (
+    difficulty_for_mastery, fixed_progression_difficulty, DEFAULT_INITIAL_MASTERY,
+)
 from backend.ai_engine.scenario_generator import generate_scenario
 
 router = APIRouter(prefix="/api/quests", tags=["quests"])
@@ -29,17 +31,21 @@ def _get_or_create_mastery(db: Session, learner_id: str, skill: str) -> models.S
 @router.get("", response_model=list[schemas.QuestOut])
 def recommended_quests(learner_id: str, db: Session = Depends(get_db)):
     """
-    Adaptive quest list: one recommended quest per module, chosen at the
-    difficulty band matching the learner's current mastery in that module's
-    skill (ZPD-based recommendation - see ai_engine/personalization.py).
+    Adaptive quest list: one recommended quest per module. Treatment-condition
+    learners get the ZPD-based recommendation (ai_engine/personalization.py);
+    control-condition learners get a fixed, non-adaptive progression - the R3
+    comparative-study baseline (docs/EVALUATION_FRAMEWORK.md section 1).
     """
-    require_consent(db, learner_id)
+    learner = require_consent(db, learner_id)
 
     modules = db.query(models.Module).all()
     recommendations = []
     for module in modules:
         mastery = _get_or_create_mastery(db, learner_id, module.skill)
-        target_difficulty = difficulty_for_mastery(mastery.mastery_score)
+        if learner.condition == "control":
+            target_difficulty = fixed_progression_difficulty(mastery.attempts_count)
+        else:
+            target_difficulty = difficulty_for_mastery(mastery.mastery_score)
 
         candidates = db.query(models.Quest).filter(models.Quest.skill == module.skill).all()
         if not candidates:
@@ -52,8 +58,15 @@ def recommended_quests(learner_id: str, db: Session = Depends(get_db)):
 
 @router.post("/generate", response_model=schemas.QuestOut)
 def generate_new_scenario(payload: schemas.ScenarioGenerateIn, db: Session = Depends(get_db)):
-    """AI Engine 'Retrieve / Generate' path: creates a fresh scenario quest via the LLM (or fallback)."""
-    require_consent(db, payload.learner_id)
+    """AI Engine 'Retrieve / Generate' path: creates a fresh scenario quest via the LLM (or fallback).
+    Not available to control-condition learners, who only see seeded content
+    (R3: "traditional" baseline has no AI-generated scenarios)."""
+    learner = require_consent(db, payload.learner_id)
+    if learner.condition == "control":
+        raise HTTPException(status_code=403, detail=(
+            "AI scenario generation is not available for the traditional (control) "
+            "training condition - this learner is assigned to the non-AI baseline."
+        ))
 
     module = db.query(models.Module).filter(models.Module.skill == payload.skill).first()
     if not module:

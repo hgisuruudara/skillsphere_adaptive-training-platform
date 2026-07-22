@@ -12,12 +12,13 @@ fairness triad used in the evaluation framework (see docs/EVALUATION_FRAMEWORK.m
 """
 import datetime as dt
 from collections import defaultdict
-from statistics import mean
+from statistics import mean, stdev
 
 from sqlalchemy.orm import Session
 
 from backend import models
 from backend.ethics.bias_mitigation import audit_cohort_fairness
+from backend.ai_engine.personalization import DEFAULT_INITIAL_MASTERY
 
 
 def build_dashboard_metrics(db: Session) -> dict:
@@ -109,6 +110,79 @@ def _engagement_by_day(events, days: int) -> list[dict]:
         bucket = buckets.get(day, {"attempts": 0, "learners": set()})
         series.append({"date": day, "attempts": bucket["attempts"], "active_learners": len(bucket["learners"])})
     return series
+
+
+def comparative_study_stats(db: Session) -> dict:
+    """
+    R3 evidence: compares the treatment (AI-driven) and control (traditional)
+    conditions on real attempt data - see docs/EVALUATION_FRAMEWORK.md section 1
+    for the protocol (random assignment at consent, condition-branched routes
+    in routers/quests.py and routers/gameplay.py). Reports mastery growth rate,
+    accuracy, and attempts-per-learner per condition, plus a Cohen's d effect
+    size on growth rate (H1 in the evaluation framework).
+    """
+    learners = db.query(models.Learner).filter(models.Learner.erased_at.is_(None)).all()
+    condition_by_learner = {l.id: l.condition for l in learners}
+
+    skills = db.query(models.SkillMastery).filter(models.SkillMastery.attempts_count > 0).all()
+    attempts = db.query(models.Attempt).all()
+
+    def group_stats(condition: str) -> dict:
+        rows = [s for s in skills if condition_by_learner.get(s.learner_id) == condition]
+        learner_ids = {s.learner_id for s in rows}
+        growth_rates = [(s.mastery_score - DEFAULT_INITIAL_MASTERY) / s.attempts_count for s in rows]
+        group_attempts = [a for a in attempts if condition_by_learner.get(a.learner_id) == condition]
+        accuracy = mean([1.0 if a.correct else 0.0 for a in group_attempts]) if group_attempts else None
+
+        return {
+            "learner_count": len(learner_ids),
+            "avg_mastery_growth_rate": round(mean(growth_rates), 4) if growth_rates else None,
+            "overall_accuracy": round(accuracy, 4) if accuracy is not None else None,
+            "avg_attempts_per_learner": round(len(group_attempts) / len(learner_ids), 2) if learner_ids else None,
+            "_growth_rates": growth_rates,
+        }
+
+    control = group_stats("control")
+    treatment = group_stats("treatment")
+
+    cohens_d, interpretation = None, None
+    c_rates, t_rates = control["_growth_rates"], treatment["_growth_rates"]
+    if len(c_rates) >= 2 and len(t_rates) >= 2:
+        pooled_std = _pooled_stdev(c_rates, t_rates)
+        if pooled_std > 0:
+            cohens_d = round((mean(t_rates) - mean(c_rates)) / pooled_std, 4)
+            interpretation = _interpret_effect_size(cohens_d)
+
+    control.pop("_growth_rates")
+    treatment.pop("_growth_rates")
+
+    return {
+        "control": control,
+        "treatment": treatment,
+        "cohens_d": cohens_d,
+        "effect_size_interpretation": interpretation,
+        "note": ("Effect size requires at least 2 learners with attempts in each condition. "
+                 "Treat this as pilot-scale evidence, not a fully powered study - report "
+                 "sample sizes alongside the effect size (see docs/EVALUATION_FRAMEWORK.md section 3)."),
+    }
+
+
+def _pooled_stdev(a: list, b: list) -> float:
+    n1, n2 = len(a), len(b)
+    s1, s2 = stdev(a), stdev(b)
+    pooled_variance = ((n1 - 1) * s1 ** 2 + (n2 - 1) * s2 ** 2) / (n1 + n2 - 2)
+    return pooled_variance ** 0.5
+
+
+def _interpret_effect_size(d: float) -> str:
+    magnitude = abs(d)
+    if magnitude < 0.2:
+        return "negligible"
+    if magnitude < 0.5:
+        return "small"
+    if magnitude < 0.8:
+        return "medium"
+    return "large"
 
 
 def learner_history(db: Session, learner_id: str, limit: int = 20) -> list[dict]:

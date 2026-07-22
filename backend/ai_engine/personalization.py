@@ -55,6 +55,17 @@ def difficulty_for_mastery(mastery: float) -> int:
     return stretched
 
 
+def fixed_progression_difficulty(attempts_count: int) -> int:
+    """
+    Traditional, non-adaptive difficulty progression: advances by a fixed
+    schedule (module order) after each attempt, regardless of correctness or
+    mastery. This is the R3 control-condition baseline compared against the
+    ZPD-based difficulty_for_mastery() used for the treatment condition -
+    see docs/EVALUATION_FRAMEWORK.md section 1.
+    """
+    return min(MAX_DIFFICULTY, MIN_DIFFICULTY + attempts_count)
+
+
 def build_feedback_prompt(*, learner_display_name: str, skill: str, correct: bool,
                            mastery_score: float, difficulty: int, prompt_text: str,
                            previous_mistake: Optional[str] = None) -> tuple[str, str]:

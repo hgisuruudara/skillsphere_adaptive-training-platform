@@ -15,6 +15,7 @@ class LearnerOut(BaseModel):
     id: str
     display_name: str
     cohort: Optional[str]
+    condition: str
     total_points: int
     level: int
     consent_given: bool
@@ -100,3 +101,11 @@ class DashboardMetricsOut(BaseModel):
     fairness_monitor: List[Dict[str, Any]]
     top_learners: List[Dict[str, Any]]
     technique_comparison: Dict[str, Any]
+
+
+class ComparisonStatsOut(BaseModel):
+    control: Dict[str, Any]
+    treatment: Dict[str, Any]
+    cohens_d: Optional[float]
+    effect_size_interpretation: Optional[str]
+    note: str

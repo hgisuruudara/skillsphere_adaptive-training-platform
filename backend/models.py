@@ -19,6 +19,7 @@ class Learner(Base):
     id = Column(String, primary_key=True)  # slug/handle chosen at signup
     display_name = Column(String, nullable=False)
     cohort = Column(String, nullable=True)  # non-sensitive grouping (e.g. team/dept) for fairness monitoring
+    condition = Column(String, default="treatment")  # "treatment" (AI-driven) | "control" (traditional) - R3 comparative study
     preferences = Column(JSON, default=dict)  # e.g. {"learning_style": "visual"}
     total_points = Column(Integer, default=0)
     level = Column(Integer, default=1)

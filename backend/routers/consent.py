@@ -1,3 +1,5 @@
+import random
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -13,8 +15,12 @@ router = APIRouter(prefix="/api", tags=["consent"])
 def give_consent(payload: schemas.ConsentIn, db: Session = Depends(get_db)):
     learner = db.query(models.Learner).filter(models.Learner.id == payload.learner_id).first()
     if not learner:
+        # R3 comparative study: randomly assign each new learner to the
+        # AI-driven (treatment) or traditional (control) condition at signup,
+        # matching the protocol in docs/EVALUATION_FRAMEWORK.md section 1.
+        assigned_condition = random.choice(["treatment", "control"])
         learner = models.Learner(id=payload.learner_id, display_name=payload.display_name,
-                                  cohort=payload.cohort)
+                                  cohort=payload.cohort, condition=assigned_condition)
         db.add(learner)
     else:
         learner.display_name = payload.display_name
