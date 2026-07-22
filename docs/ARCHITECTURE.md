@@ -103,6 +103,16 @@ auditable, which matters for the ethics/fairness objective (R4): an
 instructor or auditor can reason about `update_mastery()` and
 `difficulty_for_mastery()` without needing to trace HTTP plumbing.
 
+**R3 branching (not shown above for readability):** the diagram depicts the
+`treatment`-condition path. For a `control`-condition learner,
+`submit_attempt` skips the `LLM` call entirely (static "Correct."/
+"Incorrect." feedback, `fixed_progression_difficulty()` instead of
+`difficulty_for_mastery()`), and `generate_new_scenario` returns `403`.
+Both conditions still call `update_mastery()` *and* `bkt_update()` and
+persist `mastery_score_after` on the `Attempt` row, so the two groups
+remain comparable on growth rate regardless of which feedback path they
+took - see `docs/EVALUATION_FRAMEWORK.md` §1.
+
 ## 3. Data model (Entity-Relationship)
 
 ```mermaid
@@ -119,6 +129,7 @@ erDiagram
         string id PK
         string display_name
         string cohort
+        string condition
         int total_points
         int level
         bool consent_given
@@ -128,6 +139,7 @@ erDiagram
         string learner_id FK
         string skill
         float mastery_score
+        float mastery_score_bkt
         int attempts_count
         int correct_streak
     }
@@ -151,6 +163,7 @@ erDiagram
         bool correct
         int points_awarded
         text ai_feedback
+        float mastery_score_after
     }
     BADGE {
         string learner_id FK
@@ -175,9 +188,9 @@ erDiagram
 |---|---|---|
 | Gamified Training Interface | `frontend/index.html`, `frontend/js/app.js` | Renders quests, points, level, badges; captures gameplay events (answer + response time) |
 | Gamification Engine | `backend/gamification/engine.py` | Deterministic scoring, level curve, badge rules, quest progression |
-| LLM-Based AI Engine | `backend/ai_engine/personalization.py`, `llm_client.py`, `scenario_generator.py` | Mastery estimation (EMA), ZPD-based difficulty recommendation, adaptive feedback generation, scenario generation |
-| Ethics & Privacy Layer | `backend/ethics/privacy.py`, `bias_mitigation.py` | Consent gating, right-to-erasure, cohort fairness auditing |
-| Learning Analytics Module | `backend/analytics/engagement.py`, `reporting.py` | Event logging, engagement/performance/fairness aggregation |
+| LLM-Based AI Engine | `backend/ai_engine/personalization.py`, `mastery_models.py`, `llm_client.py`, `scenario_generator.py` | Mastery estimation (EMA, driving; BKT, shadow comparison), ZPD-based difficulty recommendation, past-mistake-aware adaptive feedback, scenario generation |
+| Ethics & Privacy Layer | `backend/ethics/privacy.py`, `bias_mitigation.py`, `scripts/synthetic_bias_check.py` | Consent gating, right-to-erasure, cohort fairness auditing (practical + statistical significance) with runnable verification evidence |
+| Learning Analytics Module | `backend/analytics/engagement.py`, `reporting.py` | Event logging, engagement/performance/fairness aggregation, technique/condition comparison, mastery-over-time reconstruction |
 | Training Content Repository | `backend/models.py::Module/Quest`, `seed_data.py` | Pre-authored + AI-generated modules, scenarios, assessments |
 | Learner Profile Store | `backend/models.py::Learner/SkillMastery` | Skills (mastery per skill), preferences, history |
 | Instructor/Admin Dashboard | `frontend/dashboard.html`, `js/dashboard.js` | Engagement charts, fairness monitor, leaderboard |

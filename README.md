@@ -11,6 +11,22 @@ an ethics & privacy layer, a learning analytics module, and an instructor
 dashboard. It is deliberately small enough to read end-to-end in an
 afternoon, while being complete enough to run a real pilot study against.
 
+Beyond the core loop, the prototype now includes the empirical-evidence
+features each research question asks for, not just the mechanism each
+question is about:
+- **R1**: a second mastery estimator (Bayesian Knowledge Tracing) computed
+  alongside the primary one (EMA) purely for technique comparison, and
+  feedback that references a learner's specific past mistake.
+- **R2**: four independent training verticals (safety, service, data
+  privacy, onboarding) sharing one framework, proving reusability.
+- **R3**: a working randomized control/treatment split (`Learner.condition`)
+  with a live comparison endpoint (mastery growth, accuracy, Cohen's d).
+- **R4**: a fairness monitor that requires statistical significance
+  (Welch's t-test), plus a standalone script that proves it catches an
+  injected disparity.
+- **R5**: a per-skill mastery-over-time chart on the learner view, backed
+  by a full attempt-by-attempt time series rather than a snapshot.
+
 ## Why this exists
 
 A thesis about AI-enhanced gamified corporate training needs more than a
@@ -64,6 +80,14 @@ Run the test suite:
 python -m pytest -q
 ```
 
+Run the standalone R4 fairness-mitigation evidence script (no server or
+database needed - prints a PASS/FAIL report you can paste directly into a
+report as testing evidence):
+
+```bash
+python scripts/synthetic_bias_check.py
+```
+
 **No Anthropic API key is required.** If `ANTHROPIC_API_KEY` is unset, the AI
 Engine automatically runs in a deterministic "fallback mode" (see
 `backend/ai_engine/llm_client.py`) so the whole prototype - adaptive
@@ -85,6 +109,8 @@ backend/
 frontend/
   index.html, dashboard.html, css/, js/
 tests/
+scripts/
+  synthetic_bias_check.py             # standalone, runnable R4 fairness-mitigation evidence
 docs/
 ```
 

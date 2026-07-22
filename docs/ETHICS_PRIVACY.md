@@ -63,9 +63,26 @@ denying them the same mastery growth opportunities).
   why a separate **fairness monitor** exists rather than assuming the
   behaviour-blind design is sufficient on its own.
 - `backend/ethics/bias_mitigation.py::audit_cohort_fairness` computes each
-  cohort's average mastery vs. the overall average and flags deviations
-  beyond `DISPARITY_FLAG_THRESHOLD` (15 percentage points). This is
-  surfaced on the Instructor Dashboard's "Fairness Monitor" panel.
+  cohort's average mastery vs. the overall average and flags a cohort only
+  when its deviation is **both** practically significant (beyond
+  `DISPARITY_FLAG_THRESHOLD`, 15 percentage points) **and** statistically
+  significant - a Welch's t-test against the rest of the population, with
+  p < `P_VALUE_THRESHOLD` (0.05). The t-test is implemented from scratch
+  with the standard library only (`welch_t_test_pvalue`, via a regularized
+  incomplete beta function), deliberately avoiding scipy to keep the
+  project's Windows-install reliability unchanged. Requiring statistical
+  significance in addition to a fixed threshold matters because a small
+  cohort can produce a large-looking gap by chance alone; a threshold-only
+  check would flag that noise as if it were bias. This is surfaced on the
+  Instructor Dashboard's "Fairness Monitor" panel, including the p-value
+  itself so instructors can judge confidence, not just see a pass/fail flag.
+- **Verified, not just designed**: `scripts/synthetic_bias_check.py` is a
+  standalone script (no server or database needed) that feeds two synthetic
+  cohort datasets into the real `audit_cohort_fairness()` function - one
+  fair, one with a deliberately injected disparity - and checks the monitor
+  correctly stays quiet on the first and flags the second. Its console
+  output is meant to be run and pasted directly into the thesis as evidence
+  that the fairness *mitigation* works, not just that it exists in code.
 - **Deliberately not automated**: the audit *flags for human review*, it
   does not auto-correct scores or auto-adjust difficulty. Automatically
   "fixing" a detected disparity without understanding its cause (e.g.,
@@ -110,5 +127,6 @@ before handling real employee data).
 | No audit trail of consent state | Append-only `ConsentRecord` | `models.py::ConsentRecord` |
 | No way to withdraw / be forgotten | Pseudonymizing erasure endpoint | `ethics/privacy.py::erase_learner` |
 | Adaptive model encodes group bias | Behaviour-only inputs to mastery model | `ai_engine/personalization.py` |
-| Undetected disparate impact | Cohort fairness monitor (human-reviewed) | `ethics/bias_mitigation.py` |
+| Undetected disparate impact | Cohort fairness monitor requiring practical *and* statistical significance (human-reviewed) | `ethics/bias_mitigation.py` |
+| Fairness monitor unverified | Synthetic bias-injection evidence script | `scripts/synthetic_bias_check.py` |
 | Manipulative reward mechanics | Fixed, disclosed, non-exploitative thresholds | `gamification/engine.py` |
