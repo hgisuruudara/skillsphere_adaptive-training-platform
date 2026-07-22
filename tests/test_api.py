@@ -41,7 +41,7 @@ def test_full_gameplay_loop(client):
     resp = client.get(f"/api/quests?learner_id={learner_id}")
     assert resp.status_code == 200
     quests = resp.json()
-    assert len(quests) == 3
+    assert len(quests) == 4
 
     quest = quests[0]
     # Submit an attempt (may be right or wrong; both paths must work).
@@ -61,7 +61,7 @@ def test_full_gameplay_loop(client):
     assert len(profile["recent_history"]) == 1
     # GET /api/quests seeds a SkillMastery row per module (one per skill) so it
     # can recommend a difficulty for each; only the attempted skill has an attempt.
-    assert len(profile["skills"]) == 3
+    assert len(profile["skills"]) == 4
     attempted_skill = next(s for s in profile["skills"] if s["skill"] == quest["skill"])
     assert attempted_skill["attempts_count"] == 1
 
