@@ -139,7 +139,7 @@ async function loadProfile() {
   $("statBadges").textContent = profile.badges.length;
 
   $("badgeList").innerHTML = profile.badges
-    .map((b) => `<span class="badge-chip">${b.name}</span>`)
+    .map((b) => `<span class="badge-chip">${badgeIcon(b.name)} ${b.name}</span>`)
     .join("") || '<span class="muted">No badges yet - complete a quest to earn your first one.</span>';
 
   const skills = profile.skills.length
@@ -212,6 +212,10 @@ const BADGE_ICONS = {
   "Consistent Learner": "📅",
 };
 const DEFAULT_BADGE_ICON = "🎖️";
+
+function badgeIcon(name) {
+  return BADGE_ICONS[name] || DEFAULT_BADGE_ICON;
+}
 
 function showRewardToast({ type, icon, title, name }) {
   const container = $("rewardToasts");
@@ -312,7 +316,7 @@ window.answerQuest = async function (selectedIndex) {
     const placeholder = $("badgeList").querySelector(".muted");
     if (placeholder) $("badgeList").innerHTML = "";
     result.new_badges.forEach((name) => {
-      $("badgeList").insertAdjacentHTML("beforeend", `<span class="badge-chip">${name}</span>`);
+      $("badgeList").insertAdjacentHTML("beforeend", `<span class="badge-chip">${badgeIcon(name)} ${name}</span>`);
     });
   }
 
@@ -326,7 +330,7 @@ window.answerQuest = async function (selectedIndex) {
   }
   result.new_badges.forEach((name) => {
     setTimeout(() => showRewardToast({
-      type: "badge", icon: BADGE_ICONS[name] || DEFAULT_BADGE_ICON, title: "Badge Earned", name,
+      type: "badge", icon: badgeIcon(name), title: "Badge Earned", name,
     }), delay);
     delay += 350;
   });
