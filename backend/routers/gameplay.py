@@ -68,12 +68,28 @@ def submit_attempt(payload: schemas.AttemptIn, db: Session = Depends(get_db)):
         db.add(models.Badge(learner_id=learner.id, code=code, name=name))
 
     # --- AI Engine: adaptive feedback generation (R1) ---
+    # Look up the learner's most recent *incorrect* attempt on this same skill
+    # (queried before today's attempt is added, so it naturally excludes it)
+    # so feedback can reference a specific past error, not just a difficulty
+    # number - a second, independent dimension of personalization.
+    previous_mistake_row = (
+        db.query(models.Quest.prompt)
+        .join(models.Attempt, models.Attempt.quest_id == models.Quest.id)
+        .filter(models.Attempt.learner_id == learner.id, models.Quest.skill == quest.skill,
+                models.Attempt.correct.is_(False))
+        .order_by(models.Attempt.timestamp.desc())
+        .first()
+    )
+    previous_mistake = previous_mistake_row[0] if previous_mistake_row else None
+
     system_prompt, user_prompt = build_feedback_prompt(
         learner_display_name=learner.display_name, skill=quest.skill, correct=correct,
         mastery_score=update.new_mastery, difficulty=quest.difficulty, prompt_text=quest.prompt,
+        previous_mistake=previous_mistake,
     )
     fallback_text = fallback_feedback(correct=correct, skill=quest.skill,
-                                       mastery_score=update.new_mastery, difficulty=quest.difficulty)
+                                       mastery_score=update.new_mastery, difficulty=quest.difficulty,
+                                       previous_mistake=previous_mistake)
     feedback_result = chat_complete(system_prompt, user_prompt, fallback_text=fallback_text)
 
     attempt = models.Attempt(

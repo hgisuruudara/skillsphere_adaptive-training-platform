@@ -1,5 +1,6 @@
 from backend.ai_engine.personalization import (
     update_mastery, difficulty_for_mastery, MASTERY_EMA_ALPHA,
+    build_feedback_prompt, fallback_feedback,
 )
 from backend.ai_engine.llm_client import chat_complete
 from backend.ai_engine.scenario_generator import generate_scenario
@@ -76,6 +77,28 @@ def test_bkt_never_fully_resets_to_zero_due_to_transit():
     # because the learning-transition step always leaves some residual probability.
     update = bkt_update(prior_mastery=0.05, correct=False)
     assert update.new_mastery > 0.0
+
+
+def test_feedback_prompt_includes_previous_mistake_when_given():
+    _, without = build_feedback_prompt(learner_display_name="A", skill="s", correct=True,
+                                        mastery_score=0.5, difficulty=2, prompt_text="Q?")
+    _, with_mistake = build_feedback_prompt(learner_display_name="A", skill="s", correct=True,
+                                             mastery_score=0.5, difficulty=2, prompt_text="Q?",
+                                             previous_mistake="Earlier tricky scenario")
+    assert "Earlier tricky scenario" not in without
+    assert "Earlier tricky scenario" in with_mistake
+
+
+def test_fallback_feedback_references_previous_mistake_on_repeat_error():
+    text = fallback_feedback(correct=False, skill="data_privacy", mastery_score=0.5,
+                              difficulty=2, previous_mistake="A prior scenario")
+    assert "difficult before" in text
+
+
+def test_fallback_feedback_notes_improvement_after_past_mistake():
+    text = fallback_feedback(correct=True, skill="data_privacy", mastery_score=0.5,
+                              difficulty=2, previous_mistake="A prior scenario")
+    assert "tripped you up" in text
 
 
 def test_ema_and_bkt_agree_on_direction_of_change():

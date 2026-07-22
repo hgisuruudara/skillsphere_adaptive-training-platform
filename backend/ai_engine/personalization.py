@@ -19,6 +19,7 @@ Two mechanisms are implemented:
    (challenge-skill balance).
 """
 from dataclasses import dataclass
+from typing import Optional
 
 MASTERY_EMA_ALPHA = 0.3          # weight given to the newest attempt
 DEFAULT_INITIAL_MASTERY = 0.3
@@ -55,14 +56,23 @@ def difficulty_for_mastery(mastery: float) -> int:
 
 
 def build_feedback_prompt(*, learner_display_name: str, skill: str, correct: bool,
-                           mastery_score: float, difficulty: int, prompt_text: str) -> tuple[str, str]:
-    """Builds the (system_prompt, user_prompt) pair sent to the LLM for adaptive feedback."""
+                           mastery_score: float, difficulty: int, prompt_text: str,
+                           previous_mistake: Optional[str] = None) -> tuple[str, str]:
+    """
+    Builds the (system_prompt, user_prompt) pair sent to the LLM for adaptive
+    feedback. `previous_mistake` - the prompt text of the learner's most recent
+    incorrect attempt on this same skill, if any - lets feedback reference a
+    specific past error rather than only a difficulty number, giving R1's
+    personalization a second, independent dimension beyond difficulty.
+    """
     system_prompt = (
         "You are an encouraging, concise corporate-training coach embedded in a "
         "gamified learning platform. Give personalized, actionable feedback in "
         "2-3 sentences. Never mention that you are an AI model. Do not repeat "
         "the question verbatim. Adapt tone to the learner's current mastery: "
-        "be more supportive at low mastery, more challenging at high mastery."
+        "be more supportive at low mastery, more challenging at high mastery. "
+        "If a past mistake is provided, briefly connect today's feedback to it "
+        "(e.g. noting improvement or a recurring pattern) - do not just restate it."
     )
     user_prompt = (
         f"Learner: {learner_display_name}\n"
@@ -71,20 +81,34 @@ def build_feedback_prompt(*, learner_display_name: str, skill: str, correct: boo
         f"Question difficulty: {difficulty}/5\n"
         f"Question: {prompt_text}\n"
         f"Learner answered: {'correctly' if correct else 'incorrectly'}\n"
+    )
+    if previous_mistake:
+        user_prompt += f"Most recent past mistake on this skill: \"{previous_mistake}\"\n"
+    user_prompt += (
         "Write feedback that reinforces the correct concept and suggests what "
         "to focus on next."
     )
     return system_prompt, user_prompt
 
 
-def fallback_feedback(*, correct: bool, skill: str, mastery_score: float, difficulty: int) -> str:
+def fallback_feedback(*, correct: bool, skill: str, mastery_score: float, difficulty: int,
+                       previous_mistake: Optional[str] = None) -> str:
     """Deterministic feedback used when no LLM is configured."""
     if correct:
-        if mastery_score >= 0.8:
-            return (f"Excellent - you're operating at expert level on {skill}. "
-                     f"Ready for a harder scenario (difficulty {min(5, difficulty + 1)}).")
-        return (f"Correct! Your {skill} mastery is climbing ({mastery_score:.0%}). "
-                f"Keep going to unlock tougher scenarios.")
+        if previous_mistake:
+            base = (f"Nice work - this builds on the kind of scenario that tripped you up "
+                    f"before, and you handled it correctly this time.")
+        elif mastery_score >= 0.8:
+            base = (f"Excellent - you're operating at expert level on {skill}. "
+                    f"Ready for a harder scenario (difficulty {min(5, difficulty + 1)}).")
+        else:
+            base = (f"Correct! Your {skill} mastery is climbing ({mastery_score:.0%}). "
+                    f"Keep going to unlock tougher scenarios.")
+        return base
+
+    if previous_mistake:
+        return (f"This is similar to a {skill} scenario you found difficult before - "
+                f"focus on the same core policy or principle rather than the surface details.")
     if mastery_score < 0.4:
         return (f"Not quite - {skill} needs more practice. Review the fundamentals "
                 f"before the next attempt; the next question will be a bit easier.")
