@@ -26,9 +26,10 @@ async function loadMetrics() {
       <td>${f.learner_count}</td>
       <td>${Math.round(f.avg_mastery * 100)}%</td>
       <td>${f.deviation_from_overall >= 0 ? "+" : ""}${Math.round(f.deviation_from_overall * 100)}%</td>
+      <td>${f.p_value === null || f.p_value === undefined ? "n/a" : f.p_value.toFixed(4)}</td>
       <td>${f.flag ? '<span class="pill flag">review</span>' : '<span class="pill">ok</span>'}</td>
     </tr>
-  `).join("") || '<tr><td colspan="5" class="muted">No skill data yet.</td></tr>';
+  `).join("") || '<tr><td colspan="6" class="muted">No skill data yet.</td></tr>';
 
   document.getElementById("leaderboardTable").innerHTML = m.top_learners.map((l, i) => `
     <tr><td>${i + 1}</td><td>${l.display_name}</td><td>${l.level}</td><td>${l.points}</td></tr>

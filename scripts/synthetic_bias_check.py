@@ -26,7 +26,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend.ethics.bias_mitigation import audit_cohort_fairness, DISPARITY_FLAG_THRESHOLD  # noqa: E402
+from backend.ethics.bias_mitigation import (  # noqa: E402
+    audit_cohort_fairness,
+    DISPARITY_FLAG_THRESHOLD,
+    P_VALUE_THRESHOLD,
+)
 
 random.seed(42)  # reproducible synthetic data across runs
 
@@ -41,18 +45,20 @@ def make_cohort_rows(cohort: str, mean_mastery: float, n: int, spread: float = 0
 def print_report(title: str, rows: list[dict]) -> list[dict]:
     print(f"\n{'=' * 60}\n{title}\n{'=' * 60}")
     summary = audit_cohort_fairness(rows)
-    print(f"{'Cohort':<12} {'Learners':<10} {'Avg Mastery':<14} {'Deviation':<12} {'Flag'}")
+    print(f"{'Cohort':<12} {'Learners':<10} {'Avg Mastery':<14} {'Deviation':<12} {'p-value':<10} {'Flag'}")
     for row in summary:
         deviation_pct = f"{row['deviation_from_overall'] * 100:+.1f}%"
         avg_pct = f"{row['avg_mastery'] * 100:.1f}%"
+        p_value = f"{row['p_value']:.4f}" if row["p_value"] is not None else "n/a"
         flag = "REVIEW" if row["flag"] else "ok"
-        print(f"{row['cohort']:<12} {row['learner_count']:<10} {avg_pct:<14} {deviation_pct:<12} {flag}")
+        print(f"{row['cohort']:<12} {row['learner_count']:<10} {avg_pct:<14} {deviation_pct:<12} {p_value:<10} {flag}")
     return summary
 
 
 def main() -> int:
     print(f"Fairness monitor disparity threshold: {DISPARITY_FLAG_THRESHOLD * 100:.0f} percentage points")
-    print("(from backend/ethics/bias_mitigation.py::DISPARITY_FLAG_THRESHOLD)")
+    print(f"Statistical significance threshold: p < {P_VALUE_THRESHOLD} (Welch's t-test)")
+    print("A cohort is only flagged when BOTH conditions hold (see bias_mitigation.py).")
 
     # --- Scenario A: fair, no injected disparity ---
     fair_rows = make_cohort_rows("team-alpha", 0.65, 20) + make_cohort_rows("team-beta", 0.68, 20)
