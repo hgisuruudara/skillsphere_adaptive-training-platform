@@ -202,6 +202,33 @@ function prettySkill(skill) {
   return skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Matched against Badge.name from evaluate_badges() in gamification/engine.py -
+// a default icon covers any future badge added there without a matching update here.
+const BADGE_ICONS = {
+  "First Steps": "👣",
+  "Quick Learner (3-streak)": "⚡",
+  "Perfectionist (5-streak)": "🌟",
+  "Skill Master": "🏆",
+  "Consistent Learner": "📅",
+};
+const DEFAULT_BADGE_ICON = "🎖️";
+
+function showRewardToast({ type, icon, title, name }) {
+  const container = $("rewardToasts");
+  const toast = document.createElement("div");
+  toast.className = `reward-toast ${type}`;
+  toast.innerHTML = `
+    <div class="reward-icon">${icon}</div>
+    <div class="reward-text">
+      <div class="reward-title">${title}</div>
+      <div class="reward-name">${name}</div>
+    </div>`;
+  toast.addEventListener("animationend", (event) => {
+    if (event.animationName === "reward-toast-out") toast.remove();
+  });
+  container.appendChild(toast);
+}
+
 async function loadQuests() {
   const quests = await api(`/api/quests?learner_id=${encodeURIComponent(state.learnerId)}`);
   $("questList").innerHTML = quests.map((q) => `
@@ -254,12 +281,25 @@ window.answerQuest = async function (selectedIndex) {
 
   const box = $("feedbackBox");
   box.classList.remove("hidden");
-  const levelUpMsg = result.level_up ? ` 🎉 Level up! You're now level ${result.level}.` : "";
-  const badgeMsg = result.new_badges.length ? ` New badge(s): ${result.new_badges.join(", ")}.` : "";
   box.innerHTML = `
-    <strong>${result.correct ? "Correct" : "Not quite"}</strong> · +${result.points_awarded} pts${levelUpMsg}${badgeMsg}
+    <strong>${result.correct ? "Correct" : "Not quite"}</strong> · +${result.points_awarded} pts
     <p style="margin-bottom:0;">${result.ai_feedback}</p>
   `;
+
+  // Celebrate level-ups and new badges as animated toasts rather than plain
+  // text - staggered slightly so multiple rewards from one attempt (e.g. a
+  // level-up and a streak badge together) don't all pop in at once.
+  let delay = 0;
+  if (result.level_up) {
+    showRewardToast({ type: "levelup", icon: "🎉", title: "Level Up", name: `You're now level ${result.level}` });
+    delay += 350;
+  }
+  result.new_badges.forEach((name) => {
+    setTimeout(() => showRewardToast({
+      type: "badge", icon: BADGE_ICONS[name] || DEFAULT_BADGE_ICON, title: "Badge Earned", name,
+    }), delay);
+    delay += 350;
+  });
   $("nextBtn").classList.remove("hidden");
 };
 
