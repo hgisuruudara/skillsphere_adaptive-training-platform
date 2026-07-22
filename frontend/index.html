@@ -13,6 +13,7 @@
     <nav class="topnav">
       <a href="/">Learner</a>
       <a href="/dashboard">Instructor Dashboard</a>
+      <a href="#" id="newUserLink">New User</a>
     </nav>
   </header>
 
@@ -25,7 +26,8 @@
         performance. Per our Ethics &amp; Privacy Layer, no gameplay or performance
         data is stored until you explicitly consent below.
       </p>
-      <input type="text" id="learnerId" placeholder="Choose a learner ID (e.g. jane.doe)" />
+      <label class="field-label" for="learnerId">Your learner ID (auto-generated)</label>
+      <input type="text" id="learnerId" readonly />
       <input type="text" id="displayName" placeholder="Display name (e.g. Jane Doe)" />
       <input type="text" id="cohort" placeholder="Team / cohort (optional, e.g. team-alpha)" />
       <label class="checkline">
@@ -39,6 +41,7 @@
     <!-- STEP 2: Gamified dashboard -->
     <section id="learnerCard" class="card hidden">
       <h2 id="welcomeMsg">Welcome back</h2>
+      <p class="muted" id="learnerIdLine" style="margin-top:-6px;"></p>
       <div class="stat-row">
         <div class="stat"><div class="value" id="statPoints">0</div><div class="label">Points</div></div>
         <div class="stat"><div class="value" id="statLevel">1</div><div class="label">Level</div></div>

@@ -17,6 +17,34 @@ function storedLearner() {
   }
 }
 
+function generateLearnerId() {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  const code = Array.from(bytes, (b) => b.toString(36)).join("").slice(0, 8).toUpperCase();
+  return `L-${code}`;
+}
+
+// Shows a blank registration form with a freshly auto-generated learner ID -
+// used both on first visit and when switching to a new user.
+function showRegistration() {
+  localStorage.removeItem("skillsphere_learner");
+  state = { learnerId: null, displayName: null, currentQuest: null, questStartedAt: null };
+
+  ["learnerCard", "masteryCard", "masteryTimelineCard", "questCard", "playCard"]
+    .forEach((id) => $(id).classList.add("hidden"));
+
+  $("learnerId").value = generateLearnerId();
+  $("displayName").value = "";
+  $("cohort").value = "";
+  $("consentCheck").checked = false;
+  $("consentCard").classList.remove("hidden");
+}
+
+$("newUserLink").addEventListener("click", (event) => {
+  event.preventDefault();
+  showRegistration();
+});
+
 async function api(path, options = {}) {
   const res = await fetch(API + path, {
     headers: { "Content-Type": "application/json" },
@@ -36,7 +64,6 @@ $("startBtn").addEventListener("click", async () => {
   const cohort = $("cohort").value.trim() || null;
   const consent = $("consentCheck").checked;
 
-  if (!learnerId) { alert("Please choose a learner ID."); return; }
   if (!consent) { alert("Consent is required before training data can be collected."); return; }
 
   await api("/api/consent", {
@@ -64,6 +91,7 @@ async function refreshAll() {
 async function loadProfile() {
   const profile = await api(`/api/learners/${encodeURIComponent(state.learnerId)}/profile`);
   $("welcomeMsg").textContent = `Welcome back, ${profile.learner.display_name}`;
+  $("learnerIdLine").textContent = `Learner ID: ${profile.learner.id}`;
   $("statPoints").textContent = profile.learner.total_points;
   $("statLevel").textContent = profile.learner.level;
   $("statBadges").textContent = profile.badges.length;
@@ -220,9 +248,10 @@ $("generateBtn").addEventListener("click", async () => {
     $("consentCard").classList.add("hidden");
     refreshAll().catch((err) => {
       // Consent may have been revoked/erased server-side; fall back to signup.
-      localStorage.removeItem("skillsphere_learner");
-      $("consentCard").classList.remove("hidden");
+      showRegistration();
       console.warn(err);
     });
+  } else {
+    $("learnerId").value = generateLearnerId();
   }
 })();
