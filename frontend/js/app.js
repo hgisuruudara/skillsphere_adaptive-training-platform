@@ -17,6 +17,76 @@ function storedLearner() {
   }
 }
 
+function generateLearnerId() {
+  const bytes = new Uint8Array(6);
+  crypto.getRandomValues(bytes);
+  const code = Array.from(bytes, (b) => b.toString(36)).join("").slice(0, 8).toUpperCase();
+  return `L-${code}`;
+}
+
+// Shows a blank registration form with a freshly auto-generated learner ID -
+// used both on first visit and when switching to a new user.
+function showRegistration() {
+  localStorage.removeItem("skillsphere_learner");
+  state = { learnerId: null, displayName: null, currentQuest: null, questStartedAt: null };
+
+  ["learnerCard", "masteryCard", "masteryTimelineCard", "questCard", "playCard"]
+    .forEach((id) => $(id).classList.add("hidden"));
+
+  $("learnerId").value = generateLearnerId();
+  $("displayName").value = "";
+  $("cohort").value = "";
+  $("consentCheck").checked = false;
+  $("resumeBox").classList.add("hidden");
+  $("resumeId").value = "";
+  $("resumeMsg").textContent = "";
+  $("consentCard").classList.remove("hidden");
+}
+
+$("newUserLink").addEventListener("click", (event) => {
+  event.preventDefault();
+  showRegistration();
+});
+
+// ---------- Resume on a new browser/device with an existing learner ID ----------
+$("showResumeLink").addEventListener("click", (event) => {
+  event.preventDefault();
+  $("resumeBox").classList.toggle("hidden");
+});
+
+$("resumeBtn").addEventListener("click", () => {
+  const id = $("resumeId").value.trim();
+  if (!id) { $("resumeMsg").textContent = "Enter a learner ID first."; return; }
+  attemptResume(id);
+});
+
+async function attemptResume(id) {
+  $("resumeMsg").textContent = "";
+  $("resumeBtn").disabled = true;
+  try {
+    const profile = await api(`/api/learners/${encodeURIComponent(id)}/profile`);
+    state = { learnerId: id, displayName: profile.learner.display_name, currentQuest: null, questStartedAt: null };
+    try {
+      await refreshAll();
+      localStorage.setItem("skillsphere_learner", JSON.stringify(state));
+      $("consentCard").classList.add("hidden");
+      $("resumeBox").classList.add("hidden");
+    } catch {
+      // Profile exists, but a data-writing call (e.g. quests) came back 403 -
+      // consent isn't currently active for this ID (never granted, withdrawn,
+      // or erased). Let the learner re-consent under the same ID rather than
+      // silently starting a brand new one.
+      $("learnerId").value = id;
+      $("displayName").value = profile.learner.display_name || "";
+      $("resumeMsg").textContent = "This ID exists, but consent isn't currently active - re-consent below with the same ID to continue.";
+    }
+  } catch {
+    $("resumeMsg").textContent = "No learner found with that ID. Check it and try again.";
+  } finally {
+    $("resumeBtn").disabled = false;
+  }
+}
+
 async function api(path, options = {}) {
   const res = await fetch(API + path, {
     headers: { "Content-Type": "application/json" },
@@ -36,7 +106,6 @@ $("startBtn").addEventListener("click", async () => {
   const cohort = $("cohort").value.trim() || null;
   const consent = $("consentCheck").checked;
 
-  if (!learnerId) { alert("Please choose a learner ID."); return; }
   if (!consent) { alert("Consent is required before training data can be collected."); return; }
 
   await api("/api/consent", {
@@ -64,12 +133,13 @@ async function refreshAll() {
 async function loadProfile() {
   const profile = await api(`/api/learners/${encodeURIComponent(state.learnerId)}/profile`);
   $("welcomeMsg").textContent = `Welcome back, ${profile.learner.display_name}`;
+  $("learnerIdLine").textContent = `Learner ID: ${profile.learner.id}`;
   $("statPoints").textContent = profile.learner.total_points;
   $("statLevel").textContent = profile.learner.level;
   $("statBadges").textContent = profile.badges.length;
 
   $("badgeList").innerHTML = profile.badges
-    .map((b) => `<span class="badge-chip">${b.name}</span>`)
+    .map((b) => `<span class="badge-chip">${badgeIcon(b.name)} ${b.name}</span>`)
     .join("") || '<span class="muted">No badges yet - complete a quest to earn your first one.</span>';
 
   const skills = profile.skills.length
@@ -132,6 +202,47 @@ function prettySkill(skill) {
   return skill.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+// Matched against Badge.name from evaluate_badges() in gamification/engine.py -
+// a default icon covers any future badge added there without a matching update here.
+const BADGE_ICONS = {
+  "First Steps": "👣",
+  "Quick Learner (3-streak)": "⚡",
+  "Perfectionist (5-streak)": "🌟",
+  "Skill Master": "🏆",
+  "Consistent Learner": "📅",
+};
+const DEFAULT_BADGE_ICON = "🎖️";
+
+function badgeIcon(name) {
+  return BADGE_ICONS[name] || DEFAULT_BADGE_ICON;
+}
+
+function showRewardToast({ type, icon, title, name }) {
+  const container = $("rewardToasts");
+  const toast = document.createElement("div");
+  toast.className = `reward-toast ${type}`;
+  toast.innerHTML = `
+    <div class="reward-icon">${icon}</div>
+    <div class="reward-text">
+      <div class="reward-title">${title}</div>
+      <div class="reward-name">${name}</div>
+    </div>`;
+  toast.addEventListener("animationend", (event) => {
+    if (event.animationName === "reward-toast-out") toast.remove();
+  });
+  container.appendChild(toast);
+}
+
+// Re-triggers the pulse animation even if the tile already pulsed recently -
+// removing then reflowing then re-adding the class restarts a CSS animation
+// that a plain re-add would otherwise skip (same class already applied).
+function pulseStat(id) {
+  const el = $(id);
+  el.classList.remove("stat-pulse");
+  void el.offsetWidth;
+  el.classList.add("stat-pulse");
+}
+
 async function loadQuests() {
   const quests = await api(`/api/quests?learner_id=${encodeURIComponent(state.learnerId)}`);
   $("questList").innerHTML = quests.map((q) => `
@@ -184,12 +295,45 @@ window.answerQuest = async function (selectedIndex) {
 
   const box = $("feedbackBox");
   box.classList.remove("hidden");
-  const levelUpMsg = result.level_up ? ` 🎉 Level up! You're now level ${result.level}.` : "";
-  const badgeMsg = result.new_badges.length ? ` New badge(s): ${result.new_badges.join(", ")}.` : "";
   box.innerHTML = `
-    <strong>${result.correct ? "Correct" : "Not quite"}</strong> · +${result.points_awarded} pts${levelUpMsg}${badgeMsg}
+    <strong>${result.correct ? "Correct" : "Not quite"}</strong> · +${result.points_awarded} pts
     <p style="margin-bottom:0;">${result.ai_feedback}</p>
   `;
+
+  // Update the KPI tiles the instant the result comes back, rather than
+  // leaving them stale until "Back to quests" triggers a full refreshAll().
+  $("statPoints").textContent = result.total_points;
+  if (result.points_awarded > 0) pulseStat("statPoints");
+
+  $("statLevel").textContent = result.level;
+  if (result.level_up) pulseStat("statLevel");
+
+  if (result.new_badges.length) {
+    const currentBadgeCount = parseInt($("statBadges").textContent, 10) || 0;
+    $("statBadges").textContent = currentBadgeCount + result.new_badges.length;
+    pulseStat("statBadges");
+
+    const placeholder = $("badgeList").querySelector(".muted");
+    if (placeholder) $("badgeList").innerHTML = "";
+    result.new_badges.forEach((name) => {
+      $("badgeList").insertAdjacentHTML("beforeend", `<span class="badge-chip">${badgeIcon(name)} ${name}</span>`);
+    });
+  }
+
+  // Celebrate level-ups and new badges as animated toasts rather than plain
+  // text - staggered slightly so multiple rewards from one attempt (e.g. a
+  // level-up and a streak badge together) don't all pop in at once.
+  let delay = 0;
+  if (result.level_up) {
+    showRewardToast({ type: "levelup", icon: "🎉", title: "Level Up", name: `You're now level ${result.level}` });
+    delay += 350;
+  }
+  result.new_badges.forEach((name) => {
+    setTimeout(() => showRewardToast({
+      type: "badge", icon: badgeIcon(name), title: "Badge Earned", name,
+    }), delay);
+    delay += 350;
+  });
   $("nextBtn").classList.remove("hidden");
 };
 
@@ -220,9 +364,10 @@ $("generateBtn").addEventListener("click", async () => {
     $("consentCard").classList.add("hidden");
     refreshAll().catch((err) => {
       // Consent may have been revoked/erased server-side; fall back to signup.
-      localStorage.removeItem("skillsphere_learner");
-      $("consentCard").classList.remove("hidden");
+      showRegistration();
       console.warn(err);
     });
+  } else {
+    $("learnerId").value = generateLearnerId();
   }
 })();

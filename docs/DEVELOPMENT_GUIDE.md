@@ -70,6 +70,19 @@ as stored fields.
 init_db; init_db()"` and see `skillsphere.db` created with all tables, before
 writing a single endpoint.
 
+**No migration tooling by design:** `init_db()` only creates tables that don't
+exist yet (`Base.metadata.create_all()`); it never alters an existing table.
+So after pulling code with a model change (a new column, a new table), an
+old `skillsphere.db` will throw `sqlite3.OperationalError: no such column: ...`
+- the fix is to delete `skillsphere.db` and restart the app, which recreates
+it from the current models and reseeds content automatically. **Always stop
+the running server first.** Deleting the file out from under a server that
+still has it open doesn't just lose data - a new connection opened afterward
+can create a fresh, empty file at that path while the old process's
+connections are still confused about what they're pointing at, which is what
+produces the harder-to-diagnose `attempt to write a readonly database` error
+rather than a clean recreate.
+
 ## 4. Build each engine as a pure, framework-free module
 
 This is the most important discipline in the whole guide: **build the
