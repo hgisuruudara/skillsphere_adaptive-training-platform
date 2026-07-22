@@ -32,16 +32,29 @@
       <section class="card">
         <h2>Fairness Monitor <span class="muted">(cohort mastery comparison)</span></h2>
         <table>
-          <thead><tr><th>Cohort</th><th>Learners</th><th>Avg Mastery</th><th>Deviation</th><th></th></tr></thead>
+          <thead><tr><th>Cohort</th><th>Learners</th><th>Avg Mastery</th><th>Deviation</th><th>p-value</th><th></th></tr></thead>
           <tbody id="fairnessTable"></tbody>
         </table>
         <p class="muted">
           The AI Engine never conditions difficulty or feedback on cohort membership;
           this panel exists purely to help instructors detect and investigate outcome
-          disparities after the fact (see Ethics &amp; Privacy Layer).
+          disparities after the fact (see Ethics &amp; Privacy Layer). A cohort is only
+          flagged for review when its deviation is both practically large (&ge;15 points)
+          and statistically significant (Welch's t-test, p &lt; 0.05) against the rest of
+          the population.
         </p>
       </section>
     </div>
+
+    <section class="card">
+      <h2>AI Technique Comparison <span class="muted">(EMA vs. Bayesian Knowledge Tracing)</span></h2>
+      <div class="stat-row" id="techniqueRow"></div>
+      <p class="muted">
+        EMA drives the real difficulty recommendation shown to learners. BKT is
+        computed in parallel on the same attempts purely to compare estimator
+        behaviour, per R1's "examine effectiveness of various AI techniques."
+      </p>
+    </section>
 
     <section class="card">
       <h2>Leaderboard</h2>

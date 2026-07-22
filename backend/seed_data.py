@@ -13,6 +13,8 @@ MODULES = [
      "description": "De-escalation and service-recovery scenarios."},
     {"id": "mod_privacy", "title": "Data Privacy & Compliance", "skill": "data_privacy",
      "description": "Handling personal data responsibly under company policy."},
+    {"id": "mod_onboarding", "title": "New Employee Onboarding", "skill": "onboarding_compliance",
+     "description": "Policy awareness and correct escalation during a new hire's first weeks."},
 ]
 
 QUESTS = [
@@ -84,14 +86,43 @@ QUESTS = [
                  "Read through it since it was already shown to you", "Screenshot it as evidence",
                  "Mention it to the employee directly"],
      "correct_index": 0},
+    # New Employee Onboarding (4th vertical - reuses the same engine unmodified,
+    # demonstrating the framework generalizes beyond its original 3 verticals, R2)
+    {"id": "q_onboarding_1", "module_id": "mod_onboarding", "skill": "onboarding_compliance", "difficulty": 1, "kind": "quiz",
+     "prompt": "It's your first week and you're unsure which system holds the official expense policy. What should you do?",
+     "options": ["Check the onboarding portal / ask your manager for the official source", "Guess based on a former employer's policy",
+                 "Ask a random coworker in chat and assume it's correct", "Skip the expense claim entirely"],
+     "correct_index": 0},
+    {"id": "q_onboarding_2", "module_id": "mod_onboarding", "skill": "onboarding_compliance", "difficulty": 2, "kind": "quiz",
+     "prompt": "A senior colleague asks you to skip the mandatory security training 'since it's just a formality'. What do you do?",
+     "options": ["Ignore them and complete it since it's just a formality", "Complete the mandatory training regardless and mention the comment if it recurs",
+                 "Skip it to avoid conflict with a senior colleague", "Mark it complete without doing it"],
+     "correct_index": 1},
+    {"id": "q_onboarding_3", "module_id": "mod_onboarding", "skill": "onboarding_compliance", "difficulty": 3, "kind": "scenario",
+     "prompt": "You are asked to sign off on a process you were never trained on, because 'everyone does it this way'. What is the appropriate response?",
+     "options": ["Ask for proper training or written guidance before signing off", "Sign off anyway since others do",
+                 "Sign off but tell no one", "Refuse to do the task at all without escalating"],
+     "correct_index": 0},
+    {"id": "q_onboarding_4", "module_id": "mod_onboarding", "skill": "onboarding_compliance", "difficulty": 4, "kind": "scenario",
+     "prompt": "During onboarding you notice a documented process conflicts with what your team actually does day-to-day. What should you do?",
+     "options": ["Raise the discrepancy with your manager or the process owner for clarification",
+                 "Follow the undocumented team habit since it's more common", "Follow the document strictly and say nothing",
+                 "Ignore both and do whatever seems easiest"],
+     "correct_index": 0},
 ]
 
 
 def seed(db: Session) -> None:
-    if db.query(models.Module).count() == 0:
-        for m in MODULES:
+    """Idempotent per-row: safe to call on every startup, and safe to add new
+    modules/quests later without wiping or skipping seeding on an existing DB."""
+    existing_module_ids = {m.id for m in db.query(models.Module.id).all()}
+    for m in MODULES:
+        if m["id"] not in existing_module_ids:
             db.add(models.Module(**m))
-    if db.query(models.Quest).count() == 0:
-        for q in QUESTS:
+
+    existing_quest_ids = {q.id for q in db.query(models.Quest.id).all()}
+    for q in QUESTS:
+        if q["id"] not in existing_quest_ids:
             db.add(models.Quest(**q))
+
     db.commit()

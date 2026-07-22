@@ -15,6 +15,7 @@ class LearnerOut(BaseModel):
     id: str
     display_name: str
     cohort: Optional[str]
+    condition: str
     total_points: int
     level: int
     consent_given: bool
@@ -26,6 +27,7 @@ class LearnerOut(BaseModel):
 class SkillMasteryOut(BaseModel):
     skill: str
     mastery_score: float
+    mastery_score_bkt: float
     attempts_count: int
     correct_streak: int
 
@@ -61,6 +63,7 @@ class LearnerProfileOut(BaseModel):
     skills: List[SkillMasteryOut]
     badges: List[BadgeOut]
     recent_history: List[Dict[str, Any]]
+    mastery_timeline: List[Dict[str, Any]]
 
 
 class AttemptIn(BaseModel):
@@ -98,3 +101,12 @@ class DashboardMetricsOut(BaseModel):
     engagement_by_day: List[Dict[str, Any]]
     fairness_monitor: List[Dict[str, Any]]
     top_learners: List[Dict[str, Any]]
+    technique_comparison: Dict[str, Any]
+
+
+class ComparisonStatsOut(BaseModel):
+    control: Dict[str, Any]
+    treatment: Dict[str, Any]
+    cohens_d: Optional[float]
+    effect_size_interpretation: Optional[str]
+    note: str

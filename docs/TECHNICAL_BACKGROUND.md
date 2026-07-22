@@ -23,9 +23,9 @@ generic one (Alfaqiri, et al., 2022).
 **Implementation:** `backend/gamification/engine.py` implements the
 mechanical core (points, level curve, badges) as pure functions decoupled
 from any specific domain, so the *same* engine can be pointed at different
-corporate training verticals (safety, service, compliance - see
-`backend/seed_data.py`) without modification, addressing the
-framework-reusability gap directly.
+corporate training verticals (workplace safety, customer service, data
+privacy, new-employee onboarding compliance - see `backend/seed_data.py`)
+without modification, addressing the framework-reusability gap directly.
 
 ## 2. Motivational theory underpinning the design
 
@@ -74,22 +74,29 @@ explicit about which one this prototype uses and why:
 
 | Technique | How it works | Interpretability | Data requirement | Used here? |
 |---|---|---|---|---|
-| **Item Response Theory (IRT) / Bayesian Knowledge Tracing** | Probabilistic model of latent skill vs. item difficulty, updated per response | High | Moderate (needs item calibration data) | Approximated via EMA (see below) |
-| **Exponential Moving Average (EMA) mastery tracking** | `new = old + α(observed - old)`, a lightweight recency-weighted estimator | Very high - one formula, fully auditable | Minimal - works from attempt 1 | **Yes** - `update_mastery()` |
+| **Bayesian Knowledge Tracing (BKT)** | Probabilistic latent-skill model updated per response via fixed transit/slip/guess probabilities | High | Minimal - works from attempt 1 | **Yes** - `bkt_update()` in `ai_engine/mastery_models.py`, computed as a shadow metric alongside EMA for direct comparison |
+| **Exponential Moving Average (EMA) mastery tracking** | `new = old + α(observed - old)`, a lightweight recency-weighted estimator | Very high - one formula, fully auditable | Minimal - works from attempt 1 | **Yes** - `update_mastery()`, the estimator that actually drives difficulty/feedback decisions |
 | **Reinforcement Learning (RL) policies** | An agent learns a difficulty/content policy that maximizes long-run engagement/learning reward | Low (learned policy is a black box) | High (needs large interaction volume) | No - deliberately avoided for a pilot-scale, auditable system |
 | **LLM-based generation** | A large language model generates novel scenario text/feedback conditioned on learner context | Medium (output is human-readable but reasoning is opaque) | None (zero-shot) | **Yes** - `scenario_generator.py`, feedback generation in `personalization.py` |
 
 **Design rationale:** the mastery/difficulty model uses the transparent EMA
-approach rather than RL or full IRT for two reasons directly tied to the
-thesis's other objectives: (1) auditability supports the ethics/fairness
-objective (R4) - a regulator or instructor can hand-verify the update rule;
-and (2) it works from the very first attempt, which matters for a
-time-boxed pilot study (R3) where learners will not generate enough data for
-RL or IRT calibration to converge. The **generative** side of "AI" (content
-and feedback) is where the LLM is actually used, since natural-language
-generation is a task where LLMs meaningfully outperform template systems,
-while the **decision** side (what to show next) is kept simple and
-inspectable on purpose.
+approach rather than RL for two reasons directly tied to the thesis's other
+objectives: (1) auditability supports the ethics/fairness objective (R4) -
+a regulator or instructor can hand-verify the update rule; and (2) it works
+from the very first attempt, which matters for a time-boxed pilot study
+(R3) where learners will not generate enough data for RL calibration to
+converge. BKT is implemented too, but deliberately kept as a **shadow
+metric** rather than a second real decision-maker: both estimators consume
+the same evidence (`correct`) on every attempt, and
+`analytics/reporting.py::_technique_comparison` reports their mean absolute
+difference and agreement rate on real data, turning R1's "effectiveness of
+various AI techniques" into a measured comparison rather than a literature
+claim - while keeping exactly one estimator (EMA) responsible for what a
+learner actually experiences, which keeps the adaptive loop auditable. The
+**generative** side of "AI" (content and feedback) is where the LLM is
+actually used, since natural-language generation is a task where LLMs
+meaningfully outperform template systems, while the **decision** side (what
+to show next) is kept simple and inspectable on purpose.
 
 This split - transparent decision logic + generative LLM content - is the
 prototype's answer to the research gap around unclear framework guidance

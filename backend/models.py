@@ -19,6 +19,7 @@ class Learner(Base):
     id = Column(String, primary_key=True)  # slug/handle chosen at signup
     display_name = Column(String, nullable=False)
     cohort = Column(String, nullable=True)  # non-sensitive grouping (e.g. team/dept) for fairness monitoring
+    condition = Column(String, default="treatment")  # "treatment" (AI-driven) | "control" (traditional) - R3 comparative study
     preferences = Column(JSON, default=dict)  # e.g. {"learning_style": "visual"}
     total_points = Column(Integer, default=0)
     level = Column(Integer, default=1)
@@ -40,7 +41,8 @@ class SkillMastery(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     learner_id = Column(String, ForeignKey("learners.id"), nullable=False)
     skill = Column(String, nullable=False)
-    mastery_score = Column(Float, default=0.3)  # 0..1, EMA-updated
+    mastery_score = Column(Float, default=0.3)  # 0..1, EMA-updated - drives real difficulty decisions
+    mastery_score_bkt = Column(Float, default=0.3)  # 0..1, Bayesian Knowledge Tracing - shadow metric for R1 technique comparison, does not affect gameplay
     attempts_count = Column(Integer, default=0)
     correct_streak = Column(Integer, default=0)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
@@ -85,6 +87,7 @@ class Attempt(Base):
     response_time_ms = Column(Integer, default=0)
     points_awarded = Column(Integer, default=0)
     ai_feedback = Column(Text, default="")
+    mastery_score_after = Column(Float, nullable=True)  # EMA mastery immediately after this attempt - R5 mastery-over-time evidence
     timestamp = Column(DateTime, default=utcnow)
 
     learner = relationship("Learner", back_populates="attempts")

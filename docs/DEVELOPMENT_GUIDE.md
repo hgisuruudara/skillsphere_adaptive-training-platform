@@ -140,11 +140,15 @@ Router order to build:
 
 ## 7. Seed realistic content
 
-`backend/seed_data.py` defines 3 modules × 4 quests spanning difficulty 1-4,
-covering three corporate-training verticals (workplace safety, customer
-service, data privacy) so the demo is domain-realistic rather than abstract
-"Question 1, Question 2" placeholders. `seed()` is idempotent (checks
-`count() == 0`) so it is safe to call on every app startup.
+`backend/seed_data.py` defines 4 modules × 4 quests spanning difficulty 1-4,
+covering four corporate-training verticals (workplace safety, customer
+service, data privacy, new-employee onboarding compliance) so the demo is
+domain-realistic rather than abstract "Question 1, Question 2"
+placeholders - the fourth vertical was added later specifically to
+demonstrate the framework generalizes to a new domain with zero engine
+changes (R2). `seed()` checks each row's ID individually rather than an
+all-or-nothing `count() == 0`, so it stays idempotent even as new content is
+added to an existing database.
 
 ## 8. Assemble `main.py`
 
@@ -170,12 +174,14 @@ the fairness table, and the leaderboard.
 ## 10. Test end-to-end, not just unit-by-unit
 
 Add `tests/test_api.py` using FastAPI's `TestClient` against a temporary
-SQLite file (see the `client` fixture, which sets `DATABASE_URL` and
-reloads `backend.config`/`backend.database`/`backend.main` so a fresh app
-+ DB is created per test module). Assert the full loop: consent gate
-returns 403 before consent, quests appear after consent, an attempt updates
-mastery/points/badges, AI generation returns a valid quest shape, dashboard
-metrics reflect the new data, and erasure anonymizes the profile.
+SQLite file. `tests/conftest.py` sets `DATABASE_URL` to a fresh temp path
+before any test module can import `backend.database`/`backend.models` (it
+runs first, as pytest's own convention guarantees), so every test file gets
+an isolated DB from a plain import - no `importlib.reload()` gymnastics
+needed. Assert the full loop: consent gate returns 403 before consent,
+quests appear after consent, an attempt updates mastery/points/badges, AI
+generation returns a valid quest shape, dashboard metrics reflect the new
+data, and erasure anonymizes the profile.
 
 Then manually smoke-test with the real server running (`python run.py`) and
 `curl`, checking the exact same sequence a learner's browser would perform.
@@ -200,3 +206,30 @@ set `DATABASE_URL` to a persistent-disk SQLite path (or a managed
 Postgres URL if scaling beyond a pilot), and set `ANTHROPIC_API_KEY` as a
 secret environment variable if live generation is desired. No other
 infrastructure (queues, caches, CDNs) is required at pilot scale.
+
+## 13. Later additions (evidence-focused, not a rebuild)
+
+Steps 1-12 describe the original build. A second pass then strengthened the
+research-question evidence without changing the architecture:
+
+- **R1**: `backend/ai_engine/mastery_models.py` (`bkt_update`) added a second
+  mastery estimator computed alongside the original EMA one, purely for
+  comparison (`analytics/reporting.py::_technique_comparison`); adaptive
+  feedback was extended to reference a learner's specific past mistake.
+- **R2**: a fourth training vertical (onboarding compliance) was added to
+  `seed_data.py` to demonstrate the framework generalizes.
+- **R3**: `Learner.condition` plus branching in `routers/quests.py` and
+  `routers/gameplay.py` turned the previously-*proposed* comparative study
+  design into a runnable one, with `comparative_study_stats()` computing a
+  Cohen's d effect size.
+- **R4**: `bias_mitigation.py`'s fairness flag was upgraded to require a
+  Welch's t-test (implemented from scratch, no new dependency) in addition
+  to the original fixed-threshold check, and `scripts/synthetic_bias_check.py`
+  was added as standalone, runnable proof the monitor works.
+- **R5**: `Attempt.mastery_score_after` plus `mastery_timeline()` turned the
+  mastery metric from a snapshot average into a reconstructable time series,
+  rendered as a chart on the learner view.
+
+Each addition is unit-tested (`tests/test_ai_engine.py`,
+`tests/test_comparative_study.py`, `tests/test_ethics.py`, `tests/
+test_api.py`) and traced in `docs/THESIS_MAPPING.md`.

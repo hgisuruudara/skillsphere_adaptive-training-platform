@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from backend import models, schemas
 from backend.database import get_db
-from backend.analytics.reporting import learner_history
+from backend.analytics.reporting import learner_history, mastery_timeline
 
 router = APIRouter(prefix="/api/learners", tags=["learners"])
 
@@ -17,10 +17,12 @@ def get_profile(learner_id: str, db: Session = Depends(get_db)):
     skills = db.query(models.SkillMastery).filter(models.SkillMastery.learner_id == learner_id).all()
     badges = db.query(models.Badge).filter(models.Badge.learner_id == learner_id).all()
     history = learner_history(db, learner_id)
+    timeline = mastery_timeline(db, learner_id)
 
     return schemas.LearnerProfileOut(
         learner=learner,
         skills=skills,
         badges=badges,
         recent_history=history,
+        mastery_timeline=timeline,
     )
