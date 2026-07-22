@@ -80,6 +80,12 @@ def test_full_gameplay_loop(client):
     assert attempted_skill["attempts_count"] == 1
     assert "mastery_score_bkt" in attempted_skill
 
+    # R5: mastery-over-time evidence - one timeline point per attempt, oldest first.
+    assert len(profile["mastery_timeline"]) == 1
+    point = profile["mastery_timeline"][0]
+    assert point["skill"] == quest["skill"]
+    assert 0.0 <= point["mastery_score_after"] <= 1.0
+
     # AI scenario generation should return a well-formed quest.
     resp = client.post("/api/quests/generate", json={"learner_id": learner_id, "skill": "data_privacy"})
     assert resp.status_code == 200
@@ -139,6 +145,31 @@ def test_treatment_condition_gets_personalized_feedback(client):
     assert resp.status_code == 200
     # Treatment feedback is never the bare control template.
     assert resp.json()["ai_feedback"] not in ("Correct.", "Incorrect.")
+
+
+def test_mastery_timeline_is_chronological_across_skills(client):
+    learner_id = f"test_timeline_{uuid.uuid4().hex[:8]}"
+    client.post("/api/consent", json={
+        "learner_id": learner_id, "display_name": "Timeline Learner", "consent": True,
+    })
+    _force_condition(learner_id, "treatment")
+
+    quests = client.get(f"/api/quests?learner_id={learner_id}").json()
+
+    for quest in quests[:2]:
+        resp = client.post("/api/attempts", json={
+            "learner_id": learner_id, "quest_id": quest["id"],
+            "selected_index": 0, "response_time_ms": 1000,
+        })
+        assert resp.status_code == 200
+
+    profile = client.get(f"/api/learners/{learner_id}/profile").json()
+    timeline = profile["mastery_timeline"]
+    assert len(timeline) == 2
+    # Oldest first (a growth curve reads left-to-right), matching submission order.
+    assert timeline[0]["skill"] == quests[0]["skill"]
+    assert timeline[1]["skill"] == quests[1]["skill"]
+    assert timeline[0]["timestamp"] <= timeline[1]["timestamp"]
 
 
 def test_comparison_endpoint_returns_both_conditions(client):

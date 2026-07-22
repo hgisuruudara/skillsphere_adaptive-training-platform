@@ -87,6 +87,7 @@ class Attempt(Base):
     response_time_ms = Column(Integer, default=0)
     points_awarded = Column(Integer, default=0)
     ai_feedback = Column(Text, default="")
+    mastery_score_after = Column(Float, nullable=True)  # EMA mastery immediately after this attempt - R5 mastery-over-time evidence
     timestamp = Column(DateTime, default=utcnow)
 
     learner = relationship("Learner", back_populates="attempts")

@@ -63,6 +63,7 @@ class LearnerProfileOut(BaseModel):
     skills: List[SkillMasteryOut]
     badges: List[BadgeOut]
     recent_history: List[Dict[str, Any]]
+    mastery_timeline: List[Dict[str, Any]]
 
 
 class AttemptIn(BaseModel):

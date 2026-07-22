@@ -110,6 +110,7 @@ def submit_attempt(payload: schemas.AttemptIn, db: Session = Depends(get_db)):
         learner_id=learner.id, quest_id=quest.id, correct=correct,
         difficulty_at_attempt=quest.difficulty, response_time_ms=payload.response_time_ms,
         points_awarded=scoring.points_awarded, ai_feedback=feedback_text,
+        mastery_score_after=update.new_mastery,
         timestamp=dt.datetime.utcnow(),
     )
     db.add(attempt)

@@ -57,6 +57,7 @@ async function refreshAll() {
   await Promise.all([loadProfile(), loadQuests()]);
   $("learnerCard").classList.remove("hidden");
   $("masteryCard").classList.remove("hidden");
+  $("masteryTimelineCard").classList.remove("hidden");
   $("questCard").classList.remove("hidden");
 }
 
@@ -77,6 +78,44 @@ async function loadProfile() {
   $("masteryList").innerHTML = skills.length
     ? skills.map(skillCard).join("")
     : '<p class="muted">No attempts yet. Mastery estimates appear after your first quest.</p>';
+
+  renderMasteryChart(profile.mastery_timeline);
+}
+
+const MASTERY_CHART_COLORS = ["#4fd1c5", "#7c9cff", "#ff9f6b", "#f7d774", "#ff8fc7"];
+
+function renderMasteryChart(timeline) {
+  const container = $("masteryChart");
+  if (!timeline || !timeline.length) {
+    container.innerHTML = '<p class="muted">No attempts yet - a mastery growth curve appears here after your first quest.</p>';
+    return;
+  }
+
+  const bySkill = {};
+  timeline.forEach((p) => {
+    (bySkill[p.skill] ||= []).push(p.mastery_score_after ?? 0);
+  });
+
+  const width = 320, height = 130, pad = 8;
+  const lines = Object.entries(bySkill).map(([skill, scores], i) => {
+    const color = MASTERY_CHART_COLORS[i % MASTERY_CHART_COLORS.length];
+    const coords = scores.map((s, idx) => {
+      const x = scores.length > 1 ? pad + (idx / (scores.length - 1)) * (width - 2 * pad) : width / 2;
+      const y = pad + (1 - Math.max(0, Math.min(1, s))) * (height - 2 * pad);
+      return [x, y];
+    });
+    const points = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+    const dots = coords.map(([x, y]) => `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="2.5" fill="${color}" />`).join("");
+    return { skill, color, points, dots };
+  });
+
+  container.innerHTML = `
+    <svg viewBox="0 0 ${width} ${height}" class="mastery-chart-svg" preserveAspectRatio="none">
+      ${lines.map((l) => `<polyline points="${l.points}" fill="none" stroke="${l.color}" stroke-width="2" />${l.dots}`).join("")}
+    </svg>
+    <div class="mastery-chart-legend">
+      ${lines.map((l) => `<span class="legend-item"><span class="legend-dot" style="background:${l.color}"></span>${prettySkill(l.skill)}</span>`).join("")}
+    </div>`;
 }
 
 function skillCard(s) {

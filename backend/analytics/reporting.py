@@ -186,8 +186,9 @@ def _interpret_effect_size(d: float) -> str:
 
 
 def learner_history(db: Session, learner_id: str, limit: int = 20) -> list[dict]:
-    attempts = (
-        db.query(models.Attempt)
+    rows = (
+        db.query(models.Attempt, models.Quest.skill)
+        .join(models.Quest, models.Quest.id == models.Attempt.quest_id)
         .filter(models.Attempt.learner_id == learner_id)
         .order_by(models.Attempt.timestamp.desc())
         .limit(limit)
@@ -196,11 +197,39 @@ def learner_history(db: Session, learner_id: str, limit: int = 20) -> list[dict]
     return [
         {
             "quest_id": a.quest_id,
+            "skill": skill,
             "correct": a.correct,
             "difficulty": a.difficulty_at_attempt,
             "points_awarded": a.points_awarded,
+            "mastery_score_after": a.mastery_score_after,
             "ai_feedback": a.ai_feedback,
             "timestamp": a.timestamp.isoformat(),
         }
-        for a in attempts
+        for a, skill in rows
+    ]
+
+
+def mastery_timeline(db: Session, learner_id: str) -> list[dict]:
+    """
+    R5 evidence: the full chronological mastery trajectory (every attempt, in
+    order), not just a single before/after snapshot - so a report can plot an
+    actual mastery-over-time curve per skill instead of asserting growth
+    happened. `learner_history` is capped and newest-first (an activity feed);
+    this is uncapped and oldest-first (a growth curve).
+    """
+    rows = (
+        db.query(models.Attempt, models.Quest.skill)
+        .join(models.Quest, models.Quest.id == models.Attempt.quest_id)
+        .filter(models.Attempt.learner_id == learner_id)
+        .order_by(models.Attempt.timestamp.asc())
+        .all()
+    )
+    return [
+        {
+            "skill": skill,
+            "correct": a.correct,
+            "mastery_score_after": a.mastery_score_after,
+            "timestamp": a.timestamp.isoformat(),
+        }
+        for a, skill in rows
     ]

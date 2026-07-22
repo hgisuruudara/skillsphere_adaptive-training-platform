@@ -161,3 +161,8 @@ th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size
 
 .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
 .bar-chart .bar { flex: 1; background: linear-gradient(180deg, var(--accent-2), var(--accent)); border-radius: 3px 3px 0 0; min-height: 2px; }
+
+.mastery-chart-svg { width: 100%; height: 140px; display: block; }
+.mastery-chart-legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 8px; font-size: 0.85rem; color: var(--muted); }
+.mastery-chart-legend .legend-item { display: flex; align-items: center; gap: 5px; }
+.mastery-chart-legend .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
