@@ -33,6 +33,19 @@ async function loadMetrics() {
   document.getElementById("leaderboardTable").innerHTML = m.top_learners.map((l, i) => `
     <tr><td>${i + 1}</td><td>${l.display_name}</td><td>${l.level}</td><td>${l.points}</td></tr>
   `).join("") || '<tr><td colspan="4" class="muted">No learners yet.</td></tr>';
+
+  const tc = m.technique_comparison;
+  document.getElementById("techniqueRow").innerHTML = tc.sample_size
+    ? [
+        ["Sample Size", tc.sample_size],
+        ["Avg EMA Mastery", `${Math.round(tc.avg_ema_mastery * 100)}%`],
+        ["Avg BKT Mastery", `${Math.round(tc.avg_bkt_mastery * 100)}%`],
+        ["Mean Abs. Difference", `${Math.round(tc.mean_absolute_difference * 100)}%`],
+        ["Agreement Rate", `${Math.round(tc.agreement_rate * 100)}%`],
+      ].map(([label, value]) => `
+        <div class="stat"><div class="value">${value}</div><div class="label">${label}</div></div>
+      `).join("")
+    : '<p class="muted">No attempts yet - comparison appears once learners start answering quests.</p>';
 }
 
 loadMetrics();

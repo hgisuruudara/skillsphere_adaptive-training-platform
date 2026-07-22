@@ -26,6 +26,7 @@ class LearnerOut(BaseModel):
 class SkillMasteryOut(BaseModel):
     skill: str
     mastery_score: float
+    mastery_score_bkt: float
     attempts_count: int
     correct_streak: int
 
@@ -98,3 +99,4 @@ class DashboardMetricsOut(BaseModel):
     engagement_by_day: List[Dict[str, Any]]
     fairness_monitor: List[Dict[str, Any]]
     top_learners: List[Dict[str, Any]]
+    technique_comparison: Dict[str, Any]

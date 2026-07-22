@@ -50,6 +50,8 @@ def build_dashboard_metrics(db: Session) -> dict:
         key=lambda x: x["points"], reverse=True,
     )[:10]
 
+    technique_comparison = _technique_comparison(skills)
+
     return {
         "total_learners": total_learners,
         "consented_learners": consented_learners,
@@ -60,6 +62,36 @@ def build_dashboard_metrics(db: Session) -> dict:
         "engagement_by_day": engagement_by_day,
         "fairness_monitor": fairness_monitor,
         "top_learners": top_learners,
+        "technique_comparison": technique_comparison,
+    }
+
+
+def _technique_comparison(skills) -> dict:
+    """
+    R1 evidence: compares the two independently-computed mastery estimators
+    (EMA - drives real difficulty decisions - vs BKT - shadow metric) on the
+    same real attempt data. Only includes skill rows with at least one
+    attempt, since both estimators start at the same default and are
+    otherwise meaningless to compare.
+    """
+    rows = [s for s in skills if s.attempts_count > 0]
+    if not rows:
+        return {
+            "sample_size": 0, "avg_ema_mastery": None, "avg_bkt_mastery": None,
+            "mean_absolute_difference": None, "agreement_rate": None,
+        }
+
+    ema_scores = [s.mastery_score for s in rows]
+    bkt_scores = [s.mastery_score_bkt for s in rows]
+    abs_diffs = [abs(e - b) for e, b in zip(ema_scores, bkt_scores)]
+    agreements = [1 for e, b in zip(ema_scores, bkt_scores) if (e >= 0.5) == (b >= 0.5)]
+
+    return {
+        "sample_size": len(rows),
+        "avg_ema_mastery": round(mean(ema_scores), 4),
+        "avg_bkt_mastery": round(mean(bkt_scores), 4),
+        "mean_absolute_difference": round(mean(abs_diffs), 4),
+        "agreement_rate": round(len(agreements) / len(rows), 4),
     }
 
 

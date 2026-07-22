@@ -8,6 +8,7 @@ from backend.database import get_db
 from backend.ethics.privacy import require_consent
 from backend.gamification.engine import score_attempt, evaluate_badges
 from backend.ai_engine.personalization import update_mastery, build_feedback_prompt, fallback_feedback
+from backend.ai_engine.mastery_models import bkt_update
 from backend.ai_engine.llm_client import chat_complete
 from backend.analytics.engagement import log_event
 from backend.routers.quests import _get_or_create_mastery
@@ -27,11 +28,18 @@ def submit_attempt(payload: schemas.AttemptIn, db: Session = Depends(get_db)):
     mastery = _get_or_create_mastery(db, learner.id, quest.skill)
 
     # --- AI Engine: adaptivity (R1) ---
+    # Primary estimator (EMA) drives the real difficulty decision below.
     update = update_mastery(current_mastery=mastery.mastery_score,
                              current_streak=mastery.correct_streak, correct=correct)
     mastery.mastery_score = update.new_mastery
     mastery.correct_streak = update.new_streak
     mastery.attempts_count += 1
+
+    # Shadow estimator (BKT) computed in parallel on the same evidence, purely
+    # for R1 technique comparison (see ai_engine/mastery_models.py) - it does
+    # not influence difficulty or scoring.
+    bkt_result = bkt_update(prior_mastery=mastery.mastery_score_bkt, correct=correct)
+    mastery.mastery_score_bkt = bkt_result.new_mastery
 
     # --- Gamification Engine: scoring & progression ---
     scoring = score_attempt(

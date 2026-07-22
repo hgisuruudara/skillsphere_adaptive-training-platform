@@ -40,7 +40,8 @@ class SkillMastery(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     learner_id = Column(String, ForeignKey("learners.id"), nullable=False)
     skill = Column(String, nullable=False)
-    mastery_score = Column(Float, default=0.3)  # 0..1, EMA-updated
+    mastery_score = Column(Float, default=0.3)  # 0..1, EMA-updated - drives real difficulty decisions
+    mastery_score_bkt = Column(Float, default=0.3)  # 0..1, Bayesian Knowledge Tracing - shadow metric for R1 technique comparison, does not affect gameplay
     attempts_count = Column(Integer, default=0)
     correct_streak = Column(Integer, default=0)
     updated_at = Column(DateTime, default=utcnow, onupdate=utcnow)
