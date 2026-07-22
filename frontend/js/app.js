@@ -229,6 +229,16 @@ function showRewardToast({ type, icon, title, name }) {
   container.appendChild(toast);
 }
 
+// Re-triggers the pulse animation even if the tile already pulsed recently -
+// removing then reflowing then re-adding the class restarts a CSS animation
+// that a plain re-add would otherwise skip (same class already applied).
+function pulseStat(id) {
+  const el = $(id);
+  el.classList.remove("stat-pulse");
+  void el.offsetWidth;
+  el.classList.add("stat-pulse");
+}
+
 async function loadQuests() {
   const quests = await api(`/api/quests?learner_id=${encodeURIComponent(state.learnerId)}`);
   $("questList").innerHTML = quests.map((q) => `
@@ -285,6 +295,26 @@ window.answerQuest = async function (selectedIndex) {
     <strong>${result.correct ? "Correct" : "Not quite"}</strong> · +${result.points_awarded} pts
     <p style="margin-bottom:0;">${result.ai_feedback}</p>
   `;
+
+  // Update the KPI tiles the instant the result comes back, rather than
+  // leaving them stale until "Back to quests" triggers a full refreshAll().
+  $("statPoints").textContent = result.total_points;
+  if (result.points_awarded > 0) pulseStat("statPoints");
+
+  $("statLevel").textContent = result.level;
+  if (result.level_up) pulseStat("statLevel");
+
+  if (result.new_badges.length) {
+    const currentBadgeCount = parseInt($("statBadges").textContent, 10) || 0;
+    $("statBadges").textContent = currentBadgeCount + result.new_badges.length;
+    pulseStat("statBadges");
+
+    const placeholder = $("badgeList").querySelector(".muted");
+    if (placeholder) $("badgeList").innerHTML = "";
+    result.new_badges.forEach((name) => {
+      $("badgeList").insertAdjacentHTML("beforeend", `<span class="badge-chip">${name}</span>`);
+    });
+  }
 
   // Celebrate level-ups and new badges as animated toasts rather than plain
   // text - staggered slightly so multiple rewards from one attempt (e.g. a
