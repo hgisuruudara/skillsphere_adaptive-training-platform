@@ -109,3 +109,26 @@ def test_ema_and_bkt_agree_on_direction_of_change():
     bkt = bkt_update(prior_mastery=0.5, correct=True)
     assert ema.new_mastery > 0.5
     assert bkt.new_mastery > 0.5
+
+
+def test_every_seeded_skill_has_its_own_offline_scenario_bank():
+    """R-15: the framework must serve every seeded training domain without
+    modification. A skill missing from the offline bank previously fell through
+    to the workplace-safety prompts, so an onboarding request returned warehouse
+    content whenever no API key was configured - which is the default."""
+    from backend.ai_engine.scenario_generator import _FALLBACK_BANK
+    from backend.seed_data import MODULES
+
+    seeded_skills = {m["skill"] for m in MODULES}
+    missing = seeded_skills - set(_FALLBACK_BANK)
+    assert not missing, f"seeded skills with no offline scenario bank: {sorted(missing)}"
+
+
+def test_unmapped_skill_falls_back_to_neutral_content_not_another_domain():
+    """An unknown skill must degrade to domain-neutral content rather than
+    silently borrowing another domain's prompts."""
+    from backend.ai_engine.scenario_generator import _FALLBACK_BANK
+
+    quest = generate_scenario(skill="totally_unknown_skill", difficulty=2)
+    for bank in _FALLBACK_BANK.values():
+        assert quest["prompt"] not in bank
