@@ -31,7 +31,19 @@ _FALLBACK_BANK = {
         "You discover a shared drive with unrestricted access to employee salary data. What is the correct escalation?",
         "A vendor requests customer data 'just to test integration'. What should you check first?",
     ],
+    "onboarding_compliance": [
+        "It is your first week and you are unsure which system holds the official expense policy. What should you do?",
+        "During onboarding you notice a documented process conflicts with what your team actually does day-to-day. What is the appropriate response?",
+        "You are asked to sign off on a process you were never trained on, because 'everyone does it this way'. What should you do?",
+    ],
 }
+
+# Used when a skill has no dedicated bank, so that an unmapped skill degrades to
+# domain-neutral content rather than silently borrowing another domain's prompts.
+_GENERIC_FALLBACK = [
+    "You encounter a situation at work that company policy does not clearly cover. What is the appropriate first step?",
+    "A colleague asks you to bypass a documented procedure to save time. How should you respond?",
+]
 
 _GENERIC_OPTIONS = [
     "Follow documented policy and escalate to the appropriate owner",
@@ -84,7 +96,7 @@ def generate_scenario(*, skill: str, difficulty: int, topic: Optional[str] = Non
 
 def _fallback_prompt(skill: str) -> str:
     key = _slugify(skill)
-    bank = _FALLBACK_BANK.get(key) or _FALLBACK_BANK["workplace_safety"]
+    bank = _FALLBACK_BANK.get(key) or _GENERIC_FALLBACK
     return random.choice(bank)
 
 

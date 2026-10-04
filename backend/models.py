@@ -72,7 +72,15 @@ class Quest(Base):
     prompt = Column(Text, nullable=False)
     options = Column(JSON, default=list)  # list[str]
     correct_index = Column(Integer, nullable=False)
-    generated_by_ai = Column(Boolean, default=False)
+    generated_by_ai = Column(Boolean, default=False)  # True only when the LLM produced the text
+    # True for pre-authored content, False for anything created on demand via
+    # POST /api/quests/generate. This is deliberately separate from
+    # `generated_by_ai`, which is False for on-demand quests produced by the
+    # offline template fallback: such a quest is still on-demand content that
+    # only the adaptive condition is entitled to see. The recommendation pool
+    # is restricted to seeded content so that both R3 conditions draw from an
+    # identical pool (requirement R-06).
+    is_seeded = Column(Boolean, default=True)
 
 
 class Attempt(Base):
