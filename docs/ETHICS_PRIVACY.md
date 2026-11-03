@@ -76,6 +76,10 @@ denying them the same mastery growth opportunities).
   check would flag that noise as if it were bias. This is surfaced on the
   Instructor Dashboard's "Fairness Monitor" panel, including the p-value
   itself so instructors can judge confidence, not just see a pass/fail flag.
+  The deviation column is displayed to one decimal place rather than rounded
+  to whole points: the 15-point threshold is applied to the unrounded value,
+  so a 14.7-point gap shown as "15%" beside an `ok` pill would look like the
+  panel contradicting its own stated rule.
 - **Verified, not just designed**: `scripts/synthetic_bias_check.py` is a
   standalone script (no server or database needed) that feeds two synthetic
   cohort datasets into the real `audit_cohort_fairness()` function - one

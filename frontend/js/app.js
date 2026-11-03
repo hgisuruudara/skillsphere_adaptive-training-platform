@@ -344,6 +344,9 @@ $("nextBtn").addEventListener("click", async () => {
 
 $("generateBtn").addEventListener("click", async () => {
   if (!state.learnerId) return;
+  const msg = $("generateMsg");
+  msg.classList.add("hidden");
+  msg.textContent = "";
   $("generateBtn").disabled = true;
   try {
     const quest = await api("/api/quests/generate", {
@@ -351,6 +354,13 @@ $("generateBtn").addEventListener("click", async () => {
       body: JSON.stringify({ learner_id: state.learnerId, skill: "data_privacy" }),
     });
     openPlayCard(quest);
+  } catch (err) {
+    // The server refuses generation for the traditional (control) condition
+    // with a 403 and an explanatory detail. Without this branch the request
+    // failed silently: the button simply re-enabled and nothing happened,
+    // which reads as a broken button rather than an enforced rule.
+    msg.textContent = err.message;
+    msg.classList.remove("hidden");
   } finally {
     $("generateBtn").disabled = false;
   }
