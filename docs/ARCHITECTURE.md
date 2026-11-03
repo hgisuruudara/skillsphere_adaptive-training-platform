@@ -193,7 +193,7 @@ erDiagram
 | Learning Analytics Module | `backend/analytics/engagement.py`, `reporting.py` | Event logging, engagement/performance/fairness aggregation, technique/condition comparison, mastery-over-time reconstruction |
 | Training Content Repository | `backend/models.py::Module/Quest`, `seed_data.py` | Pre-authored + AI-generated modules, scenarios, assessments |
 | Learner Profile Store | `backend/models.py::Learner/SkillMastery` | Skills (mastery per skill), preferences, history |
-| Instructor/Admin Dashboard | `frontend/dashboard.html`, `js/dashboard.js` | Engagement charts, fairness monitor, leaderboard |
+| Instructor/Admin Dashboard | `frontend/dashboard.html`, `js/dashboard.js` | Engagement charts, fairness monitor, EMA-vs-BKT technique comparison, adaptive-vs-non-adaptive condition comparison with Cohen's d, leaderboard |
 
 ## 5. Why FastAPI + SQLite + vanilla JS (design rationale)
 

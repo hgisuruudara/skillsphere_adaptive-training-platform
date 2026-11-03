@@ -162,6 +162,18 @@ th { color: var(--muted); font-weight: 600; text-transform: uppercase; font-size
 .muted { color: var(--muted); font-size: 13px; }
 .hidden { display: none !important; }
 
+/* Explains a refused action (e.g. a server-side rule the learner just hit)
+   rather than leaving the control to fail silently. */
+.notice {
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border-left: 3px solid var(--bad);
+  border-radius: 6px;
+  background: rgba(255, 107, 107, 0.10);
+  color: var(--text);
+  font-size: 13px;
+}
+
 .bar-chart { display: flex; align-items: flex-end; gap: 4px; height: 90px; }
 .bar-chart .bar { flex: 1; background: linear-gradient(180deg, var(--accent-2), var(--accent)); border-radius: 3px 3px 0 0; min-height: 2px; }
 

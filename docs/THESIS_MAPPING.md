@@ -61,7 +61,15 @@ abstract.
   `routers/gameplay.py::submit_attempt` (fixed vs. ZPD-based difficulty,
   static vs. LLM-personalized feedback, no generation vs. on-demand
   generation). `GET /api/dashboard/comparison` reports both groups' mastery
-  growth, accuracy, and a Cohen's d effect size.
+  growth, accuracy, and a Cohen's d effect size, rendered as the
+  "Adaptive vs. Non-Adaptive Comparison" panel on the instructor dashboard
+  (`js/dashboard.js::loadComparison`) - so the R3 evidence is visible in the
+  interface, not only retrievable from the API.
+- **Condition is enforced visibly, not silently**: a control-condition
+  learner who requests an AI-generated scenario is shown the server's own
+  403 explanation in the learner view, rather than the request failing
+  without feedback (`frontend/js/app.js`, `#generateMsg`). The screenshot is
+  usable as direct evidence that the two arms genuinely diverge.
 
 ### R4 - Ethics, privacy, fairness
 - Consent gate enforced server-side (`ethics/privacy.py::require_consent`),

@@ -102,11 +102,22 @@ implementation of this table.
 ### 2.4 Continuous improvement loop
 The Instructor Dashboard (`frontend/dashboard.html`) is the operational
 half of R5's "how can evaluation approaches provide continuous
-improvement": engagement/fairness metrics refresh every 15 seconds from
-live data, so instructors can identify, e.g., a module with unusually low
-completion or a flagged cohort disparity **during** a training rollout, not
-only in a post-hoc research report. In an evaluation write-up, this
-dashboard doubles as the study's real-time monitoring instrument.
+improvement": engagement, fairness and condition-comparison metrics
+refresh every 15 seconds from live data, so instructors can identify,
+e.g., a module with unusually low completion or a flagged cohort disparity
+**during** a training rollout, not only in a post-hoc research report. In
+an evaluation write-up, this dashboard doubles as the study's real-time
+monitoring instrument.
+
+Both comparison endpoints are rendered, not merely exposed: the "AI
+Technique Comparison" panel reads `GET /api/dashboard/metrics` and the
+"Adaptive vs. Non-Adaptive Comparison" panel reads `GET
+/api/dashboard/comparison`. The latter shows per-condition learner counts,
+mastery growth rate, accuracy and attempts, plus Cohen's d and its
+interpretation band. The endpoint's own caveat note is rendered alongside
+the effect size rather than dropped, so the figure cannot be read without
+its sample-size qualification; when either arm has fewer than two learners
+with attempts, the effect size is suppressed and the panel says why.
 
 ## 3. Validity considerations
 

@@ -20,7 +20,8 @@ question is about:
 - **R2**: four independent training verticals (safety, service, data
   privacy, onboarding) sharing one framework, proving reusability.
 - **R3**: a working randomized control/treatment split (`Learner.condition`)
-  with a live comparison endpoint (mastery growth, accuracy, Cohen's d).
+  with a live comparison endpoint (mastery growth, accuracy, Cohen's d),
+  rendered as a side-by-side panel on the instructor dashboard.
 - **R4**: a fairness monitor that requires statistical significance
   (Welch's t-test), plus a standalone script that proves it catches an
   injected disparity.
